@@ -1,34 +1,91 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## 注意事项
 
-## Getting Started
+- 使用Link标签包裹a标签的时候，className 要写在a标签上 不要写在Link上
 
-First, run the development server:
+```css
+.blob {
+  height: 150px;
+  width: 150px;
+  border-radius: 58% 43% 33% 64% / 50% 38% 53% 50%;
+  background: transparent;
+  box-shadow: inset 6px 33px 20px 0 #c9c9c9, inset 20px 80px 15px 0 #e0e0e0, 10px 20px 20px 0px #c9c9c9;
+}
 
-```bash
-npm run dev
-# or
-yarn dev
+.bg{
+  background: #e0e0e0;
+}
+
+.blob::before {
+  content: '';
+  position: absolute;
+  border-radius: 37% 54% 46% 46%;
+  background: white;
+  width: 50px;
+  transform: rotate(-30deg);
+  height: 15px;
+  top: 20px;
+  left: 20px;
+}
+
+.blob::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  width:10px;
+  height: 10px;
+  top: 60px;
+  left: 20px;
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```html
+<div className={utilStyles.bg}>
+  <div className={utilStyles.center}>
+    <div className={utilStyles.blob}></div>
+  </div>
+</div>
+```
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+## Pre-rendering
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+-  默认情况下，Next.js会预先渲染每个页面。这意味着Next.js会提前为每个页面生成HTML，而不是由客户端的JavaScript完成。预渲染可以带来更好的性能和SEO。
 
-## Learn More
+每个生成的HTML都与该页面所需的最小JavaScript代码相关联。当一个页面被浏览器加载时，它的JavaScript代码就会运行，并使该页面完全互动。(这个过程被称为水化）。
 
-To learn more about Next.js, take a look at the following resources:
+你应该看到，你的应用程序在没有JavaScript的情况下被渲染。这是因为Next.js已经将应用程序预先渲染成静态HTML，使你可以在不运行JavaScript的情况下看到应用程序的用户界面。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js有两种形式的预渲染。静态生成和服务器端渲染。区别在于它何时为一个页面生成HTML。
+  - **静态生成** 是一种预渲染方法，在构建时生成HTML。预渲染的HTML然后在每个请求中被重复使用。
+  - **服务器端渲染** 是预渲染方法，在每个请求中生成HTML。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+- 什么时候用静态生成什么时候用服务端渲染
+  就是说 我能能够判断这个html能够在请求之前渲染出来 那就用静态生成  否则就用服务端渲染
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Static Generation with Data using getStaticProps 使用getStaticProps进行数据的静态生成
+- getStaticProps在生产中的构建时间运行
+- 在getStaticProps中，你可以获取外部数据并将其作为道具发送到页面。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```js
+export async function getStaticProps() {
+  const data = ...
+
+  return {
+    props:  ...
+  }
+}
+
+```
+
+>  在开发模式下，getStaticProps会在每个请求中运行。
+
+## 动态路由
+- 如何使用getStaticPaths静态地生成具有动态路线的页面。
+- 如何编写getStaticProps来获取每篇博客文章的数据。
+- 如何使用 remark 渲染markdown。
+- 如何漂亮地打印日期字符串。
+- 如何用动态路径链接到一个页面。
+- 关于动态路由的一些有用信息。
+
