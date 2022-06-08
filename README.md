@@ -89,3 +89,6 @@ export async function getStaticProps() {
 - 如何用动态路径链接到一个页面。
 - 关于动态路由的一些有用信息。
 
+
+
+## 怎么再next中用ts

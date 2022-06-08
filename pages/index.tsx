@@ -15,7 +15,14 @@ export async function getStaticProps() {
   }
 }
 
-export default function Home({ allPostsData }) {
+export default function Home({ 
+  allPostsData }: {
+    allPostsData: {
+      date: string
+      title: string
+      id: string
+    }[]
+  }) {
   return (
     <Layout home>
       <Head>
@@ -34,7 +41,7 @@ export default function Home({ allPostsData }) {
             </Link>
             <br />
             <small className={utilStyles.lightText}>
-              <Date dateString={date} />
+              <Date sateString={date} />
             </small>
           </li>
           ))}
