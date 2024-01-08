@@ -21,9 +21,7 @@ FROM base AS install
 
 COPY package.json package-lock.json ./
 
-RUN npm i -g pnpm
-
-RUN pnpm i
+RUN npm i
 
 # 3. 基于基础镜像进行最终构建
 FROM base
@@ -34,9 +32,9 @@ COPY --from=install $APP_PATH/node_modules ./node_modules
 # 拷贝当前目录下的所有文件(除了.dockerignore里排除的)，都拷贝到工作目录下
 COPY . .
 
-RUN pnpm run build
+RUN npm run build
 
 EXPOSE 3000
 
-CMD ["pnpm", "dev"]
+CMD ["npm", "dev"]
 
