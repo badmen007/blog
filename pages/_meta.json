@@ -1,0 +1,14 @@
+{
+  "*": {
+    "type": "page"
+  },
+  "index": {
+    "title": "Home"
+  },
+  "vue": {
+    "title": "Vue"
+  },
+  "react": {
+    "title": "React"
+  }
+}
