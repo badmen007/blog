@@ -14,12 +14,14 @@ WORKDIR $APP_PATH
 # 使用国内镜像，加速下面 apk add下载安装alpine不稳定情况
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-RUN apk add --no-cache --update nodejs pnpm
+RUN apk add --no-cache --update nodejs npm
 
 # 2. 基于基础镜像安装项目依赖
 FROM base AS install
 
 COPY package.json package-lock.json ./
+
+RUN npm i -g pnpm
 
 RUN pnpm i
 
