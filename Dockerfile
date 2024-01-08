@@ -16,7 +16,7 @@ RUN apk add --no-cache --update nodejs npm
 # 2. 基于基础镜像安装项目依赖
 FROM base AS install
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 
 RUN npm install
 
