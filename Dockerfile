@@ -11,14 +11,14 @@ WORKDIR $APP_PATH
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 使用apk命令安装 nodejs 和 yarn
-RUN apk add --no-cache --update nodejs=16.13.1-r0 pnpm
+RUN apk add --no-cache --update nodejs=16.13.1-r0 npm
 
 # 2. 基于基础镜像安装项目依赖
 FROM base AS install
 
 COPY package.json pnpm-lock.yaml ./
 
-RUN pnpm install
+RUN npm install
 
 # 3. 基于基础镜像进行最终构建
 FROM base
