@@ -12,6 +12,7 @@ function MyButton() {
 
   return (
     <div>
+      <h1 className="text-3xl font-bold underline">Hello world!</h1>
       <button onClick={handleClick} className={styles.counter}>
         Clicked {count} times
       </button>
