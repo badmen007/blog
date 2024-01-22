@@ -1,0 +1,304 @@
+## 6.sidebar 组件基本样式及配置
+
+### 6.1 创建 Sidebar 组件
+
+src/layout/components/Sidebar/index.vue
+
+```vue
+<template>sidebar</template>
+```
+
+在 layout/index.vue 中直接使用组件
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <sidebar></sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <div class="navbar">navbar</div>
+        <div class="tags-view">tagsview</div>
+      </div>
+      <div class="app-main">
+        <h2>app main</h2>
+        <router-view></router-view>
+      </div>
+    </div>
+  </div>
+</template>
+```
+
+### 6.2 sidebar 中菜单组件属性配置
+
+src/layout/components/Sidebar/index.vue
+
+```vue
+<template>
+  <h4 @click="isCollapse = !isCollapse">展收测试</h4>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="isCollapse"
+    :collapse-transition="true"
+  >
+  </el-menu>
+</template>
+<script lang="ts" setup>
+import scssVariables from "@/styles/variables.module.scss";
+const route = useRoute();
+// 根据路由路径 对应 当前激活的菜单 页面刷新后 激活当前路由匹配的菜单
+const activeMenu = computed(() => {
+  return route.path;
+});
+const isCollapse = ref(false);
+</script>
+```
+
+使用 sass 时没有代码提示，我们来给 sass 增添类型声明文件
+src/styles/variables.module.scss.d.ts
+
+```ts
+export interface ScssVariables {
+  menuText: string;
+  menuActiveText: string;
+  subMenuActiveText: string;
+  menuBg: string;
+  menuHover: string;
+  subMenuBg: string;
+  subMenuHover: string;
+  sideBarWidth: string;
+}
+export const variables: ScssVariables;
+export default variables;
+```
+
+### 6.3 封装 SidebarItem 组件
+
+src/layout/components/Sidebar/SidebarItem.vue
+
+```vue
+<template>
+  <div class="sidebar-item-container">
+    <el-menu-item index="1">
+      <el-icon>
+        <svg-icon class="menu-icon" icon-class="lock"></svg-icon>
+      </el-icon>
+      <template #title>
+        <span>Dashoard</span>
+      </template>
+    </el-menu-item>
+  </div>
+</template>
+```
+
+### 6.4 sidebar 全局 css 样式改动
+
+src/styles/sidebar.scss
+
+```scss
+#app {
+  .sidebar-container {
+    height: 100%;
+    background-color: $menuBg;
+    // menu未收起时样式
+    &-menu:not(.el-menu--collapse) {
+      width: $sideBarWidth;
+    }
+    .el-menu {
+      border: none;
+    }
+  }
+}
+```
+
+在 src/layout/components/Sidebar/index.vue 中引入 SidebarItem 组件
+
+```vue
+<template>
+  <h4 @click="isCollapse = !isCollapse">展收测试</h4>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="isCollapse"
+    :collapse-transition="true"
+  >
+    <sidebar-item></sidebar-item>
+  </el-menu>
+</template>
+```
+
+### 6.5 创建路由页面
+
+src/views/documentation/index.vue
+
+```vue
+<template>
+  <div>
+    <h1>Documentation page</h1>
+  </div>
+</template>
+```
+
+src/views/guide/index.vue
+
+```vue
+<template>
+  <div>
+    <h1>Guide page</h1>
+  </div>
+</template>
+```
+
+src/views/system/menu.vue
+
+```vue
+<template>
+  <div>
+    <h1>Menu page</h1>
+  </div>
+</template>
+```
+
+src/views/system/role.vue
+
+```vue
+<template>
+  <div>
+    <h1>Role page</h1>
+  </div>
+</template>
+```
+
+src/views/system/user.vue
+
+```vue
+<template>
+  <div>
+    <h1>User page</h1>
+  </div>
+</template>
+```
+
+### 6.5 路由注册
+
+```ts
+import { RouteRecordRaw, createRouter, createWebHistory } from "vue-router";
+import Layout from "@/layout/index.vue";
+
+// 看做是异步路由
+export const asyncRoutes: Array<RouteRecordRaw> = [
+  {
+    path: "/documentation",
+    component: Layout, // 布局组件作为一级路由
+    redirect: "/documentation/index",
+    children: [
+      {
+        path: "index",
+        name: "Documentation",
+        component: () =>
+          import(
+            /* webpackChunkName: "documentation" */
+            "@/views/documentation/index.vue"
+          ),
+        meta: {
+          title: "Documentation",
+          icon: "documentation",
+        },
+      },
+    ],
+  },
+  {
+    path: "/guide",
+    component: Layout,
+    redirect: "/guide/index",
+    children: [
+      {
+        path: "index",
+        name: "Guide",
+        component: () =>
+          import(/* webpackChunkName: "guide" */ "@/views/guide/index.vue"),
+        meta: {
+          title: "Guide",
+          icon: "guide",
+        },
+      },
+    ],
+  },
+  {
+    path: "/system",
+    component: Layout,
+    redirect: "/system/user",
+    meta: {
+      title: "System",
+      icon: "lock",
+    },
+    children: [
+      {
+        path: "menu",
+        component: () =>
+          import(/* webpackChunkName: "menu" */ "@/views/system/menu.vue"),
+        meta: {
+          title: "Menu Management",
+          icon: "list",
+        },
+      },
+      {
+        path: "role",
+        component: () =>
+          import(/* webpackChunkName: "role" */ "@/views/system/role.vue"),
+        meta: {
+          title: "Role Management",
+          icon: "list",
+        },
+      },
+      {
+        path: "user",
+        component: () =>
+          import(/* webpackChunkName: "user" */ "@/views/system/user.vue"),
+        meta: {
+          title: "User Management",
+          icon: "list",
+        },
+      },
+    ],
+  },
+];
+const constantRoutes: Array<RouteRecordRaw> = [
+  {
+    path: "/",
+    component: Layout,
+    redirect: "/dashboard",
+    children: [
+      {
+        path: "dashboard",
+        name: "Dashboard",
+        component: () =>
+          import(
+            /* webpackChunkName: "dashboard" */
+            "@/views/dashboard/index.vue"
+          ),
+        meta: {
+          title: "Dashboard",
+          icon: "dashboard",
+        },
+      },
+    ],
+  },
+];
+export const routes = [...constantRoutes, ...asyncRoutes];
+
+export default createRouter({
+  history: createWebHistory(),
+  routes,
+});
+```

@@ -1,0 +1,241 @@
+## 11. 菜单收缩按钮及介入 Pinia
+
+### 11.1 创建菜单收缩按钮组件
+
+src/components/Hambuger/index.vue
+
+```vue
+<template>
+  <div class="hamburger-container" style="padding: 0 15px" @click="toggleClick">
+    <svg-icon
+      icon-class="list"
+      class-name="hamburger"
+      :class="{ 'is-active': props.isActive }"
+    ></svg-icon>
+  </div>
+</template>
+
+<script lang="ts" setup>
+const props = defineProps({
+  isActive: {
+    type: Boolean,
+    default: false,
+  },
+});
+const emit = defineEmits(["toggleClick"]);
+const toggleClick = () => {
+  emit("toggleClick");
+};
+</script>
+
+<style lang="scss" scoped>
+.hamburger-container {
+  line-height: 46px;
+  height: 100%;
+  float: left;
+  cursor: pointer;
+  transition: background 0.3s;
+  -webkit-tap-highlight-color: transparent;
+  &:hover {
+    background: rgba(0, 0, 0, 0.025);
+  }
+}
+:deep(.hamburger) {
+  display: inline-block;
+  vertical-align: middle;
+  width: 20px;
+  height: 20px;
+  transition: all 0.2s;
+}
+:deep(.hamburger.is-active) {
+  transform: rotate(180deg);
+}
+</style>
+```
+
+我们单独抽离一个 navbar 组件
+
+src/layout/components/Navbar.vue
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger @toggleClick="toggleSidebar" :is-active="true" />
+  </div>
+</template>
+<script lang="ts" setup>
+const toggleSidebar = () => {
+  console.log("click");
+};
+</script>
+<style lang="scss" scoped>
+.navbar {
+  height: 50px;
+}
+</style>
+```
+
+src/layout/index.vue
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <sidebar></sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <!-- 换成navbar组件 -->
+        <navbar></navbar>
+        <div class="tags-view">tagsview</div>
+      </div>
+      <!-- <div class="app-main">
+        <h2>app main</h2>
+        <router-view></router-view>
+      </div> -->
+      <app-main></app-main>
+    </div>
+  </div>
+</template>
+```
+
+### 11.2 接入 pinia
+
+app store 针对一些后台设置状态存储 比如收缩状态 或配置状态
+
+src/stores/app.ts
+
+```ts
+import { defineStore } from "pinia";
+export const useAppStore = defineStore("app", () => {
+  const state = reactive({
+    sidebar: {
+      opened: true,
+    },
+  });
+  const sidebar = computed(() => state.sidebar);
+
+  const toggleSidebar = () => {
+    state.sidebar.opened = !state.sidebar.opened;
+  };
+
+  return {
+    sidebar,
+    toggleSidebar,
+  };
+});
+```
+
+### 11.3 使用 store 里 sidebar 状态
+
+navbar 组件中接入 store.sidebar
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger
+      @toggleClick="toggleSidebar"
+      :is-active="sidebar.opened"
+    ></hambuger>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { storeToRefs } from "pinia";
+import { useAppStore } from "@/stores/app";
+
+const store = useAppStore();
+const { sidebar } = storeToRefs(store);
+
+const toggleSidebar = () => {
+  store.toggleSidebar();
+};
+</script>
+```
+
+src/layout/components/Sidebar/index.vue
+
+改变了这个属性 **:collapse="sidebar.opened"**
+
+```vue
+<template>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="sidebar.opened"
+    :collapse-transition="true"
+  >
+    <sidebar-item
+      v-for="route in menuRoutes"
+      :key="route.path"
+      :item="route"
+      :base-path="route.path"
+    ></sidebar-item>
+  </el-menu>
+</template>
+
+<script lang="ts" setup>
+import scssVariables from '@/styles/variables.module.scss'
+import { useAppStore } from '@/stores/app'
+import { storeToRefs } from 'pinia'
+
+const store = useAppStore()
+const { sidebar } = storeToRefs(store)
+...
+</script>
+```
+
+## 12. Pinia 持久化
+
+### 12.1 菜单收缩状态进行 Pinia 状态持久化
+
+> 主要依赖 pinia 插件 pinia-plugin-persistedstate 可以选择 storage 或自定义 可以部分
+> 状态持久化
+
+[pinia-plugin-persistedstate](https://github.com/prazdevs/pinia-plugin-persistedstate)
+
+修改 src/main.ts
+
+```ts
+import { createPinia } from "pinia";
+import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
+const pinia = createPinia();
+pinia.use(piniaPluginPersistedstate);
+app.use(pinia);
+```
+
+修改 src/stores/app.ts
+
+```ts
+import { defineStore } from "pinia";
+export const useAppStore = defineStore(
+  "app",
+  () => {
+    const state = reactive({
+      sidebar: {
+        opened: true,
+      },
+    });
+    const sidebar = computed(() => state.sidebar);
+
+    const toggleSidebar = () => {
+      state.sidebar.opened = !state.sidebar.opened;
+    };
+
+    return {
+      sidebar,
+      toggleSidebar,
+    };
+  },
+  {
+    persist: {
+      storage: window.sessionStorage,
+      paths: ["state.sidebar.opened"],
+    },
+  }
+);
+```

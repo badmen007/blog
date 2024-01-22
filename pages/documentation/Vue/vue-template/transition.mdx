@@ -1,0 +1,101 @@
+## 10. 添加路由缓存和转场动画
+
+> 在 AppMain 中添加 keep-alive 组件（路由暂时先全部缓存）和 transition 组件 切换到其他路由页再回来内容还在
+
+### 10.1 创建 AppMain 组件
+
+src/layout/components/AppMain.vue
+
+```vue
+<template>
+  <div class="app-main">
+    <router-view v-slot="{ Component }">
+      <transition name="fade-transform" mode="out-in">
+        <keep-alive>
+          <component :is="Component" :key="route.path" />
+        </keep-alive>
+      </transition>
+    </router-view>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { useRoute } from "vue-router";
+const route = useRoute();
+</script>
+
+<style lang="scss" scoped>
+.app-main {
+  /* navbar 50px */
+  min-height: calc(100vh - 50px);
+}
+
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.5s;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+</style>
+```
+
+### 10.2 layout 中导入 AppMain 组件
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <Sidebar></Sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <div class="navbar">navbar</div>
+        <div class="tags-view">tagsview</div>
+      </div>
+      <!--
+        <div class="app-main">
+        <h2>app main</h2>
+        <router-view></router-view>
+        </div>
+      -->
+      <app-main></app-main>
+    </div>
+  </div>
+</template>
+```
+
+### 10.3 缓存测试
+
+src/views/dashboard/index.vue
+
+```vue
+<template>
+  <div>
+    <h1>Dashboard page</h1>
+    <svg-icon icon-class="bug"></svg-icon>
+    <!-- icon-class svg图标名称 class-name 额外的自定义类名 @click绑定事件 -->
+    <svg-icon
+      icon-class="404"
+      class-name="custom-class"
+      @click="sayHi"
+    ></svg-icon>
+    <br />
+    <br />
+    <br />
+    <input type="text" />
+    <el-button>按钮</el-button>
+  </div>
+</template>
+</style>
+```
+
+::: tip
+切换时在 .main-container 样式中增加 overflow:hidden 属性
+:::

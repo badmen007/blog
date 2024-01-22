@@ -1,0 +1,95 @@
+## 14.全屏组件切换按钮
+
+> navbar 导航添加全屏切换按钮
+
+### 14.1 实现 Screenfull 组件
+
+**安装**
+
+> pnpm install screenfull
+
+src/components/Screenfull/index.vue
+
+```vue
+<template>
+  <svg-icon
+    :icon-class="isFullscreen ? 'exit-fullscreen' : 'fullscreen'"
+    @click="handleClick"
+  />
+</template>
+
+<script lang="ts" setup>
+import screenfull from "screenfull";
+import { onMounted } from "vue";
+
+const { proxy } = getCurrentInstance()!;
+
+const isFullscreen = ref(false);
+
+const handleClick = () => {
+  if (screenfull.isEnabled) {
+    // 浏览器是否允许全屏
+    screenfull.toggle();
+    return;
+  }
+  return proxy?.$message({
+    message: "you browser can not work",
+    type: "warning",
+  });
+};
+
+const change = () => {
+  isFullscreen.value = screenfull.isFullscreen;
+};
+
+onMounted(() => {
+  if (screenfull.isEnabled) {
+    screenfull.on("change", change);
+  }
+});
+</script>
+```
+
+**导入组件**
+src/layout/components/Navbar.vue
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger
+      @toggleClick="toggleSidebar"
+      :is-active="sidebar.opened"
+    ></hambuger>
+    <breadcrumb></breadcrumb>
+    <div class="right-menu">
+      <screenfull class="right-menu-item hover-effect"></screenfull>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { storeToRefs } from "pinia";
+import { useAppStore } from "@/stores/app";
+
+const store = useAppStore();
+const { sidebar } = storeToRefs(store);
+
+const toggleSidebar = () => {
+  store.toggleSidebar();
+};
+</script>
+
+<style lang="scss" scoped>
+.navbar {
+  // height: 50px;
+  display: flex;
+  .right-menu {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+  }
+}
+</style>
+```

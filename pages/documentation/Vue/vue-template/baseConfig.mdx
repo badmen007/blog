@@ -1,0 +1,411 @@
+# Vue3-template
+
+> 项目采用的技术栈是 vue3+typescript+pinia
+
+## 1.项目初始化
+
+### 创建项目
+
+```bash
+pnpm create vite vue-template --template vue-ts
+```
+
+## 2.基础配置
+
+### 2.1 eslint 配置
+
+```bash
+npx eslint --init
+```
+
+**校验语法错误**
+
+```bash
+? How would you like to use ESLint? ...
+ To check syntax only
+> To check syntax and find problems
+ To check syntax, find problems, and enforce code style
+```
+
+**js-module**
+
+```bash
+? What type of modules does your project use? …
+❯ JavaScript modules (import/export)
+  CommonJS (require/exports)
+  None of these
+```
+
+**采用的技术栈**
+
+```bash
+? Which framework does your project use? …
+  React
+❯ Vue.js
+  None of these
+```
+
+**是否使用 typescript**
+
+```bash
+? Does your project use TypeScript? › No / Yes
+```
+
+**在哪里运行，两个都选因为单元测试是跑在 node 环境中的**
+
+```bash
+? Where does your code run? …  (Press <space> to select, <a> to toggle all, <i> to invert selection)
+✔ Browser
+✔ Node
+```
+
+**配置文件以什么文件类型显示**
+
+```bash
+? What format do you want your config file to be in? …
+❯ JavaScript
+  YAML
+  JSON
+```
+
+**用 pnpm 安装**
+
+```bash
+✔ Would you like to install them now? · No / Yes
+? Which package manager do you want to use? …
+  npm
+  yarn
+❯ pnpm
+```
+
+**.eslintrc 文件说明**
+
+```js
+module.exports = {
+  env: {
+    // 针对哪些环境语法
+    browser: true,
+    es2021: true,
+    node: true,
+  },
+  extends: [
+    // 推荐的规则直接拿来用
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:vue/vue3-essential",
+  ],
+  parserOptions: {
+    ecmaVersion: "latest",
+    parser: "@typescript-eslint/parser", // 解析.ts文件
+    sourceType: "module",
+  },
+  plugins: ["@typescript-eslint", "vue"],
+  rules: {
+    // 自定义的规则
+  },
+};
+```
+
+**创建.eslintignore 文件**
+
+```js
+node_modules
+dist
+*.css
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.d.ts
+```
+
+**在 package.json 中添加下面代码**
+
+```js
+"lint": "eslint --fix --ext .ts,.tsx,.vue src --quiet"
+```
+
+### 2.2 prettier 配置
+
+**在 eslint 中配置 prettier**
+
+```bash
+pnpm install prettier eslint-plugin-prettier @vue/eslint-config-prettier -D
+```
+
+**在 eslint 中配置 prettier**
+
+```js
+module.exports = {
+  env: {
+    // 针对哪些环境语法
+    browser: true,
+    es2021: true,
+    node: true,
+  },
+  extends: [
+    // 推荐的规则直接拿来用
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:vue/vue3-essential",
+    "@vue/prettier",
+  ],
+  parserOptions: {
+    ecmaVersion: "latest",
+    parser: "@typescript-eslint/parser", // 解析.ts文件
+    sourceType: "module",
+  },
+  plugins: ["@typescript-eslint", "vue"],
+  rules: {
+    // 自定义的规则
+    "prettier/prettier": [
+      "error",
+      {
+        singleQuote: false, // 使用单引号
+        semi: false, // 末尾添加分号
+        tabWidth: 2,
+        trailingComma: "none",
+        useTabs: false,
+        endOfLine: "auto",
+      },
+    ],
+  },
+};
+```
+
+**创建.prettierrc.js 文件**
+
+```js
+module.exports = {
+  singleQuote: false, // 使⽤单引号
+  semi: false, // 末尾添加分号
+  tabWidth: 2,
+  trailingComma: "none",
+  useTabs: false,
+  endOfLine: "auto",
+};
+```
+
+**EditorConfig for VS Code**
+
+> 安装 EditorConfig for VS Code 插件，新建.editorconfig 文件
+
+```js
+root = true
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+end_of_line = lf
+```
+
+### 2.3 husky 配置 - 这个暂时不安装
+
+```bash
+npm pkg set scripts.prepare="husky install"
+```
+
+::: info
+
+```js
+// 出现这个问题 是因为冒号后面没有加空格
+⧗   input: feat:初始化项目
+✖   subject may not be empty [subject-empty]
+✖   type may not be empty [type-empty]
+```
+
+```js
+// 这个权限问题没有解决
+.husky/commit-msg: line 5: .git/COMMIT_EDITMSG: Permission denied
+```
+
+:::
+
+### 2.4 集成 vue-router
+
+```bash
+pnpm install vue-router
+```
+
+**关闭组件命名警告**
+
+```js
+rules: {
+// 我们自定义的规则写在这里
+"vue/multi-word-component-names": "off",
+"prettier/prettier": [
+    ...
+ ]
+}
+```
+
+**在 src 下创建 router 目录，添加 index.ts 文件**
+
+```js
+import { createRouter, createWebHistory } from "vue-router";
+
+export default createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: "/home",
+      component: () => import("../Home.vue"),
+    },
+    {
+      path: "/about",
+      component: () => import("../About.vue"),
+    },
+  ],
+});
+```
+
+**在 main 中引入**
+
+```js
+<template>
+  <router-link to="/home">Home</router-link>
+  <router-link to="/about">About</router-link>
+  <router-view></router-view>
+</template>
+```
+
+### 2.5 设置路径别名
+
+- 在 vite.config.js 中添加 resolve
+
+```js
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import path from "path";
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  resolve: {
+    alias: [
+      {
+        find: "@",
+        replacement: path.resolve(__dirname, "src"),
+      },
+    ],
+  },
+  plugins: [vue()],
+});
+```
+
+::: info
+如果找不到 path 的类型声明文件
+
+```bash
+pnpm install @types/node -D
+```
+
+:::
+
+- 在 tsconfig.js 中配置
+
+```js
+{
+  "compilerOptions": {
+    ...
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  ...
+}
+```
+
+### 2.5 集成 pinia
+
+**安装**
+
+```bash
+pnpm install pinia
+```
+
+**在 src 下创建 stores 目录，并创建 counter.ts**
+
+```ts
+import { defineStore } from "pinia";
+import { ref } from "vue";
+
+export const useCounterStore = defineStore("counter", () => {
+  const count = ref(0);
+  const increment = () => {
+    count.value++;
+  };
+  return { count, increment };
+});
+```
+
+**在 src 下的 components 中创建 Counter.vue**
+
+```vue
+<template>
+  <div>
+    <button @click="counter.increment">增加</button>
+    <div>{{ counter.count }}</div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useCounterStore } from "@/stores/counter";
+
+const counter = useCounterStore();
+</script>
+```
+
+**在 App 组件中引入 Counter 组件**
+
+```vue
+<template>
+  <router-link to="/home">Home</router-link>
+  <router-link to="/About">About</router-link>
+  <router-view></router-view>
+  <Counter></Counter>
+</template>
+```
+
+**在 main.ts 中引入 createPinia**
+
+```ts
+import { createPinia } from "pinia";
+
+createApp(App).use(router).use(createPinia()).mount("#app");
+```
+
+### 2.5 集成 Element Plus
+
+**安装**
+
+```bash
+pnpm install element-plus
+```
+
+**main 中配置**
+
+```ts
+import { createApp } from "vue";
+import App from "./App.vue";
+import router from "./router/index";
+import { createPinia } from "pinia";
++ import ElementPlus from "element-plus"; // 这里我们直接全量引入
++ import "element-plus/dist/index.css";
+const app = createApp(App);
++ app.use(ElementPlus);
+app.use(router);
+app.use(createPinia());
+app.mount("#app");
+```
+
+**Volar 支持**
+
+```json
+{
+  "compilerOptions": {
+    // ...
+    "types": ["element-plus/global"]
+  }
+}
+```
