@@ -496,3 +496,57 @@ const { cachedViews } = storeToRefs(store);
 const includes = computed(() => cachedViews.value as string[]);
 </script>
 ```
+
+### 21.3 给组件添加 name 属性
+
+vite.config.ts
+
+> 安装插件 unplugin-vue-define-options/vite 定义 name 属性
+
+```bash
+pnpm install unplugin-vue-define-options -D
+```
+
+```ts
+import DefineOptions from "unplugin-vue-define-options/vite";
+export default defineConfig({
+  plugins: [vue(), DefineOptions()],
+});
+```
+
+```vue
+<template>
+  <div>
+    <el-button>按钮</el-button>
+    <input type="text" />
+  </div>
+</template>
+<script setup lang="ts">
+defineOptions({ name: "Dashboard" });
+</script>
+```
+
+解决 ts 报错问题 tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    // ...
+    "types": [
+      "element-plus/global",
+      "unplugin-vue-define-options/macros-global"
+    ]
+  }
+}
+```
+
+解决 eslint 报错问题 .eslintrc.cjs
+
+```js
+module.exports = {
+  // ...
+  globals: {
+    defineOptions: "readonly",
+  },
+};
+```

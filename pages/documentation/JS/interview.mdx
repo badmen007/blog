@@ -1,0 +1,58 @@
+# 常见面试题总结
+
+## 1. 链式调用题
+
+题目描述：
+
+```js
+// 实现链式调用
+
+const data = [
+  { id: 1, name: "aa", age: 20, gender: "female" },
+  { id: 2, name: "bb", age: 25, gender: "male" },
+  { id: 4, name: "cc", age: 35, gender: "male" },
+  { id: 5, name: "dd", age: 40, gender: "female" },
+  { id: 3, name: "ee", age: 30, gender: "male" },
+];
+
+const result = new Query(data)
+  .where((item) => item.age > 18)
+  .sortBy("id")
+  .groupBy("gender")
+  .execute();
+console.log(result, "result");
+```
+
+实现: 其实就是返回当前实例对象 接着调用就行了
+
+```js
+// 补充：
+// aa ?? bb
+// 当问号左边的值是null或者是undefined时,返回❓右边的
+// 不存在转化比如0和''都不会被转化
+
+class Query {
+  constructor(data) {
+    this.list = data;
+  }
+  where(callback) {
+    this.list = this.list.filter(callback);
+    return this;
+  }
+  sortBy(id) {
+    this.list = this.list.sort((a, b) => a[id] - b[id]);
+    return this;
+  }
+  groupBy(key) {
+    this.list = this.list.reduce((acc, cur) => {
+      acc[cur[key]] = acc[cur[key]] ?? [];
+      acc[cur[key]].push(cur);
+      return acc;
+    }, {});
+    return this;
+  }
+  execute() {
+    return this.list;
+  }
+}
+```
