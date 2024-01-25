@@ -1,0 +1,1002 @@
+## 6.sidebar 组件基本样式及配置
+
+### 6.1 创建 Sidebar 组件
+
+src/layout/components/Sidebar/index.vue
+
+```vue
+<template>sidebar</template>
+```
+
+在 layout/index.vue 中直接使用组件
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <sidebar></sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <div class="navbar">navbar</div>
+        <div class="tags-view">tagsview</div>
+      </div>
+      <div class="app-main">
+        <h2>app main</h2>
+        <router-view></router-view>
+      </div>
+    </div>
+  </div>
+</template>
+```
+
+### 6.2 sidebar 中菜单组件属性配置
+
+src/layout/components/Sidebar/index.vue
+
+```vue
+<template>
+  <h4 @click="isCollapse = !isCollapse">展收测试</h4>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="isCollapse"
+    :collapse-transition="true"
+  >
+  </el-menu>
+</template>
+<script lang="ts" setup>
+import scssVariables from "@/styles/variables.module.scss";
+const route = useRoute();
+// 根据路由路径 对应 当前激活的菜单 页面刷新后 激活当前路由匹配的菜单
+const activeMenu = computed(() => {
+  return route.path;
+});
+const isCollapse = ref(false);
+</script>
+```
+
+使用 sass 时没有代码提示，我们来给 sass 增添类型声明文件
+src/styles/variables.module.scss.d.ts
+
+```ts
+export interface ScssVariables {
+  menuText: string;
+  menuActiveText: string;
+  subMenuActiveText: string;
+  menuBg: string;
+  menuHover: string;
+  subMenuBg: string;
+  subMenuHover: string;
+  sideBarWidth: string;
+}
+export const variables: ScssVariables;
+export default variables;
+```
+
+### 6.3 封装 SidebarItem 组件
+
+src/layout/components/Sidebar/SidebarItem.vue
+
+```vue
+<template>
+  <div class="sidebar-item-container">
+    <el-menu-item index="1">
+      <el-icon>
+        <svg-icon class="menu-icon" icon-class="lock"></svg-icon>
+      </el-icon>
+      <template #title>
+        <span>Dashoard</span>
+      </template>
+    </el-menu-item>
+  </div>
+</template>
+```
+
+### 6.4 sidebar 全局 css 样式改动
+
+src/styles/sidebar.scss
+
+```scss
+#app {
+  .sidebar-container {
+    height: 100%;
+    background-color: $menuBg;
+    // menu未收起时样式
+    &-menu:not(.el-menu--collapse) {
+      width: $sideBarWidth;
+    }
+    .el-menu {
+      border: none;
+    }
+  }
+}
+```
+
+在 src/layout/components/Sidebar/index.vue 中引入 SidebarItem 组件
+
+```vue
+<template>
+  <h4 @click="isCollapse = !isCollapse">展收测试</h4>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="isCollapse"
+    :collapse-transition="true"
+  >
+    <sidebar-item></sidebar-item>
+  </el-menu>
+</template>
+```
+
+### 6.5 创建路由页面
+
+src/views/documentation/index.vue
+
+```vue
+<template>
+  <div>
+    <h1>Documentation page</h1>
+  </div>
+</template>
+```
+
+src/views/guide/index.vue
+
+```vue
+<template>
+  <div>
+    <h1>Guide page</h1>
+  </div>
+</template>
+```
+
+src/views/system/menu.vue
+
+```vue
+<template>
+  <div>
+    <h1>Menu page</h1>
+  </div>
+</template>
+```
+
+src/views/system/role.vue
+
+```vue
+<template>
+  <div>
+    <h1>Role page</h1>
+  </div>
+</template>
+```
+
+src/views/system/user.vue
+
+```vue
+<template>
+  <div>
+    <h1>User page</h1>
+  </div>
+</template>
+```
+
+### 6.5 路由注册
+
+```ts
+import { RouteRecordRaw, createRouter, createWebHistory } from "vue-router";
+import Layout from "@/layout/index.vue";
+
+// 看做是异步路由
+export const asyncRoutes: Array<RouteRecordRaw> = [
+  {
+    path: "/documentation",
+    component: Layout, // 布局组件作为一级路由
+    redirect: "/documentation/index",
+    children: [
+      {
+        path: "index",
+        name: "Documentation",
+        component: () =>
+          import(
+            /* webpackChunkName: "documentation" */
+            "@/views/documentation/index.vue"
+          ),
+        meta: {
+          title: "Documentation",
+          icon: "documentation",
+        },
+      },
+    ],
+  },
+  {
+    path: "/guide",
+    component: Layout,
+    redirect: "/guide/index",
+    children: [
+      {
+        path: "index",
+        name: "Guide",
+        component: () =>
+          import(/* webpackChunkName: "guide" */ "@/views/guide/index.vue"),
+        meta: {
+          title: "Guide",
+          icon: "guide",
+        },
+      },
+    ],
+  },
+  {
+    path: "/system",
+    component: Layout,
+    redirect: "/system/user",
+    meta: {
+      title: "System",
+      icon: "lock",
+    },
+    children: [
+      {
+        path: "menu",
+        component: () =>
+          import(/* webpackChunkName: "menu" */ "@/views/system/menu.vue"),
+        meta: {
+          title: "Menu Management",
+          icon: "list",
+        },
+      },
+      {
+        path: "role",
+        component: () =>
+          import(/* webpackChunkName: "role" */ "@/views/system/role.vue"),
+        meta: {
+          title: "Role Management",
+          icon: "list",
+        },
+      },
+      {
+        path: "user",
+        component: () =>
+          import(/* webpackChunkName: "user" */ "@/views/system/user.vue"),
+        meta: {
+          title: "User Management",
+          icon: "list",
+        },
+      },
+    ],
+  },
+];
+const constantRoutes: Array<RouteRecordRaw> = [
+  {
+    path: "/",
+    component: Layout,
+    redirect: "/dashboard",
+    children: [
+      {
+        path: "dashboard",
+        name: "Dashboard",
+        component: () =>
+          import(
+            /* webpackChunkName: "dashboard" */
+            "@/views/dashboard/index.vue"
+          ),
+        meta: {
+          title: "Dashboard",
+          icon: "dashboard",
+        },
+      },
+    ],
+  },
+];
+export const routes = [...constantRoutes, ...asyncRoutes];
+
+export default createRouter({
+  history: createWebHistory(),
+  routes,
+});
+```
+
+## 7. 路由菜单递归
+
+### 7.1 导入路由表
+
+> sidebar 组件导入路由表，根据 routes 循环 SidebarItem 组件
+
+```vue
+<template>
+  <h4 @click="isCollapse = !isCollapse">展收测试</h4>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="isCollapse"
+    :collapse-transition="true"
+  >
+    <!-- 循环sidebar-item组件 -->
+    <sidebar-item
+      v-for="route in menuRoutes"
+      :key="route.path"
+      :item="route"
+      :base-path="route.path"
+    />
+  </el-menu>
+</template>
+<script lang="ts" setup>
+import scssVariables from "@/styles/variables.module.scss";
+import SidebarItem from "./SidebarItem.vue";
+// 导入路由表
+import { routes } from "@/router";
+// 渲染路由
+const menuRoutes = computed(() => routes);
+</script>
+```
+
+### 7.2 实现 SidebarItem 组件
+
+```vue
+<template>
+  <div class="sidebar-item-container" v-if="!item.meta || !item.meta.hidden">
+    <!-- 如果有一个孩子，或者没孩子，或者有一个孩子但是被hidden了 -->
+    <template v-if="theOnlyOneChildRoute">
+      <!-- 如果没有meta属性意味着不必渲染了 -->
+      <el-menu-item
+        :index="resolvePath(theOnlyOneChildRoute.path)"
+        v-if="theOnlyOneChildRoute.meta"
+      >
+        <el-icon v-if="icon">
+          <svg-icon class="menu-icon" :icon-class="icon"></svg-icon>
+        </el-icon>
+        <template #title>
+          <span>{{ theOnlyOneChildRoute.meta?.title }}</span>
+        </template>
+      </el-menu-item>
+    </template>
+    <!-- 多个子路由时 -->
+    <el-sub-menu v-else :index="resolvePath(item.path)" popper-appendto-body>
+      <template #title>
+        <el-icon v-if="item.meta?.icon">
+          <svg-icon class="menu-icon" :icon-class="item.meta.icon"> </svg-icon>
+        </el-icon>
+        <span class="submenu-title">{{ item.meta?.title }}</span>
+      </template>
+      <sidebar-item
+        v-for="child in item.children"
+        :key="child.path"
+        :is-nest="true"
+        :item="child"
+        :base-path="resolvePath(child.path)"
+      >
+      </sidebar-item>
+    </el-sub-menu>
+  </div>
+</template>
+<script setup lang="ts">
+import type { PropType } from "vue";
+import type { RouteRecordRaw } from "vue-router";
+import path from "path-browserify";
+
+const props = defineProps({
+  item: {
+    type: Object as PropType<RouteRecordRaw>,
+    required: true,
+  },
+  basePath: {
+    type: String,
+    required: true,
+  },
+});
+// 看看要渲染的儿子有多少
+const showingChildNumber = computed(() => {
+  const children = (props.item.children || []).filter((child) => {
+    if (child.meta && child.meta.hidden) return false;
+    return true;
+  });
+  return children.length;
+});
+const { item } = toRefs(props);
+// 只处理一个儿子的情况
+const theOnlyOneChildRoute = computed(() => {
+  // 多个children时 直接return null 多children需要用el-submenu来渲染并递归
+  if (showingChildNumber.value > 1) {
+    return null;
+  }
+  // 只有一个子路由 还要筛选路由meta里有无hidden属性 hidden：true则过滤出去 不用管;
+  // 路由meta里我们会配置hidden属性表示不渲染成菜单，比如login 401 404页面是不渲染成菜单的;
+  if (item.value.children) {
+    for (const child of item.value.children) {
+      if (!child.meta || !child.meta.hidden) {
+        return child;
+      }
+    }
+  }
+  // showingChildNumber === 0 无可渲染的子路由 （可能有子路由 hidden属性为true）
+  // 无可渲染chiildren时 把当前路由item作为仅有的子路由渲染
+  return {
+    ...props.item,
+    path: "",
+  };
+});
+
+// menu icon
+const icon = computed(() => {
+  // 子路由 如果没有icon就用父路由的
+  return (
+    theOnlyOneChildRoute.value?.meta?.icon ||
+    (props.item.meta && props.item.meta.icon)
+  );
+});
+
+// 利用path.resolve 根据父路径+子路径 解析成正确路径 子路径可能是相对的
+// resolvePath在模板中使用
+const resolvePath = (childPath: string) => {
+  return path.resolve(props.basePath, childPath);
+};
+</script>
+```
+
+> 安装 pnpm i path-browserify @types/path-browserify
+
+### 7.3 sidebar css 样式调整
+
+src/styles/sidebar.scss
+
+```scss
+#app {
+  .sidebar-container {
+    height: 100%;
+    background-color: $menuBg;
+    // menu未收起时样式
+    &-menu:not(.el-menu--collapse) {
+      width: $sideBarWidth;
+    }
+    .el-menu {
+      border: none;
+    }
+
+    // 菜单收起时的样式调整
+    .el-menu--collapse {
+      // 隐藏submenu title
+      .submenu-title {
+        display: none;
+      }
+    }
+    .el-submenu {
+      .el-menu {
+        .el-menu-item {
+          background-color: $subMenuBg !important;
+          &:hover {
+            background-color: $subMenuHover !important;
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## 8. 菜单外链处理
+
+### 8.1 创建 SidebarItemLink 组件
+
+在这个组件里来判断 是否是带协议链接 如果是带协议链接 menu-item 里，就用 a 标签渲染
+否则用 router-link 渲染 （注意 el-menu 路由模式不必开启 无需增添 router 属性）
+
+> 用到了 component 动态组件 并以插槽形式包裹 SIdebarItem 组件
+
+src/layout/components/Sidebar/SidebarItemLink.vue
+
+```vue
+<template>
+  <component :is="type" v-bind="linkProps">
+    <slot />
+  </component>
+</template>
+
+<script lang="ts" setup>
+import { isExternal } from "@/utils/validate";
+
+// 针对路径是外链 就渲染成a标签 如果是正常路径 就渲染成router-link
+
+const props = defineProps({
+  to: {
+    type: String,
+    required: true,
+  },
+});
+
+// 判断接受的路径 是不外链
+const isExt = computed(() => isExternal(props.to));
+const type = computed(() => {
+  if (isExt.value) {
+    return "a";
+  }
+  return "router-link";
+});
+
+const linkProps = computed(() => {
+  if (isExt.value) {
+    return {
+      // a标签的原生属性
+      href: props.to,
+      target: "_blank",
+      ref: "noopener",
+    };
+  }
+  return {
+    // router-link只需要一个to props
+    to: props.to,
+  };
+});
+</script>
+```
+
+### 8.2 SidebarItem 中使用 SidebarItemLink 组件
+
+src/layout/components/Sidebar/SidebarItem.vue
+
+```vue
+<template>
+  <div class="sidebar-item-container" v-if="!item.meta || !item.meta.hidden">
+    <template v-if="theOnlyOneChildRoute">
+      <sidebar-item-link
+        :to="resolvePath(theOnlyOneChildRoute.path)"
+        v-if="theOnlyOneChildRoute.meta"
+      >
+        <el-menu-item
+          :index="resolvePath(theOnlyOneChildRoute.path)"
+          v-if="theOnlyOneChildRoute.meta"
+        >
+          <el-icon>
+            <svg-icon class="menu-icon" :icon-class="icon"></svg-icon>
+          </el-icon>
+          <template #title>
+            <span>{{ theOnlyOneChildRoute.meta?.title }}</span>
+          </template>
+        </el-menu-item>
+      </sidebar-item-link>
+    </template>
+    ...
+  </div>
+</template>
+```
+
+```ts
+// 外链的话 直接返回
+const resolvePath = (childPath: string) => {
+  if (isExternal(childPath)) {
+    return childPath;
+  }
+  return path.resolve(props.basePath, childPath);
+};
+```
+
+### 8.3 添加外链路由
+
+src/router.index.ts
+
+```ts
+export const asyncRoutes: Array<RouteRecordRaw> = [
+  ...{
+    // 外链路由
+    path: "/external-link",
+    component: Layout,
+    children: [
+      {
+        path: "http://www.zhufengpeixun.com/",
+        redirect: "/",
+        meta: {
+          title: "External Link",
+          icon: "link",
+        },
+      },
+    ],
+  },
+];
+```
+
+### 8.4 去掉 a 标签默认样式
+
+src/styles/index.scss
+
+```scss
+// a标签默认样式调整
+a:focus,
+a:active {
+  outline: none;
+}
+a,
+a:focus,
+a:hover {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+```
+
+## 9. 菜单支持路由 hidden 属性
+
+> 主要是控制某些路由不用渲染成菜单，比如 login 404 401 等路由
+
+默认 hidden 就是 false 显示在菜单
+
+### 9.1 路由表里设置 hidden
+
+```ts
+{
+    path: '/system',
+    component: Layout,
+    redirect: '/system/user',
+    meta: {
+      title: 'System',
+      icon: 'lock'
+    },
+    children: [
+      {
+        path: 'menu',
+        component: () =>
+          import(/* webpackChunkName: "menu" */ '@/views/system/menu.vue'),
+        meta: {
+          title: 'Menu Management',
+          icon: 'list',
+          hidden: true
+        }
+      },
+      {
+        path: 'role',
+        component: () =>
+          import(/* webpackChunkName: "role" */ '@/views/system/role.vue'),
+        meta: {
+          title: 'Role Management',
+          icon: 'list'
+        }
+      },
+      {
+        path: 'user',
+        component: () =>
+          import(/* webpackChunkName: "user" */ '@/views/system/user.vue'),
+        meta: {
+          title: 'User Management',
+          icon: 'list'
+        }
+      }
+    ]
+  },
+```
+
+### 9.2 SidebarItem 组件修改
+
+主要是在渲染菜单项前 根据 route.meta.hidden 属性进行筛选，将 hidden 为 true 的筛选出
+去 不进行菜单渲染
+
+```ts
+const theOnlyOneChildRoute = computed(() => {
+  ...
+  return {
+    ...props.item,
+    path: '',
+    noShowingChildren: true // 没有可渲染的children
+  }
+})
+```
+
+```vue
+<template>
+  <div class="sidebar-item-container" v-if="!item.meta || !item.meta.hidden">
+    <!-- 就是这里添加了判断条件 -->
+    <template
+      v-if="
+        theOnlyOneChildRoute &&
+        (!theOnlyOneChildRoute.children ||
+          theOnlyOneChildRoute.noShowingChildren)
+      "
+    >
+      ...
+    </template>
+    <!-- 多个子路由 -->
+    ...
+  </div>
+</template>
+```
+
+## 10. 添加路由缓存和转场动画
+
+> 在 AppMain 中添加 keep-alive 组件（路由暂时先全部缓存）和 transition 组件 切换到其他路由页再回来内容还在
+
+### 10.1 创建 AppMain 组件
+
+src/layout/components/AppMain.vue
+
+```vue
+<template>
+  <div class="app-main">
+    <router-view v-slot="{ Component }">
+      <transition name="fade-transform" mode="out-in">
+        <keep-alive>
+          <component :is="Component" :key="route.path" />
+        </keep-alive>
+      </transition>
+    </router-view>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { useRoute } from "vue-router";
+const route = useRoute();
+</script>
+
+<style lang="scss" scoped>
+.app-main {
+  /* navbar 50px */
+  min-height: calc(100vh - 50px);
+}
+
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.5s;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+</style>
+```
+
+### 10.2 layout 中导入 AppMain 组件
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <Sidebar></Sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <div class="navbar">navbar</div>
+        <div class="tags-view">tagsview</div>
+      </div>
+      <!--
+        <div class="app-main">
+        <h2>app main</h2>
+        <router-view></router-view>
+        </div>
+      -->
+      <app-main></app-main>
+    </div>
+  </div>
+</template>
+```
+
+### 10.3 缓存测试
+
+src/views/dashboard/index.vue
+
+```vue
+<template>
+  <div>
+    <h1>Dashboard page</h1>
+    <svg-icon icon-class="bug"></svg-icon>
+    <!-- icon-class svg图标名称 class-name 额外的自定义类名 @click绑定事件 -->
+    <svg-icon
+      icon-class="404"
+      class-name="custom-class"
+      @click="sayHi"
+    ></svg-icon>
+    <br />
+    <br />
+    <br />
+    <input type="text" />
+    <el-button>按钮</el-button>
+  </div>
+</template>
+</style>
+```
+
+::: tip
+切换时在 .main-container 样式中增加 overflow:hidden 属性
+:::
+
+## 11. 菜单收缩按钮及介入 Pinia
+
+### 11.1 创建菜单收缩按钮组件
+
+src/components/Hambuger/index.vue
+
+```vue
+<template>
+  <div class="hamburger-container" style="padding: 0 15px" @click="toggleClick">
+    <svg-icon
+      icon-class="list"
+      class-name="hamburger"
+      :class="{ 'is-active': props.isActive }"
+    ></svg-icon>
+  </div>
+</template>
+
+<script lang="ts" setup>
+const props = defineProps({
+  isActive: {
+    type: Boolean,
+    default: false,
+  },
+});
+const emit = defineEmits(["toggleClick"]);
+const toggleClick = () => {
+  emit("toggleClick");
+};
+</script>
+
+<style lang="scss" scoped>
+.hamburger-container {
+  line-height: 46px;
+  height: 100%;
+  float: left;
+  cursor: pointer;
+  transition: background 0.3s;
+  -webkit-tap-highlight-color: transparent;
+  &:hover {
+    background: rgba(0, 0, 0, 0.025);
+  }
+}
+:deep(.hamburger) {
+  display: inline-block;
+  vertical-align: middle;
+  width: 20px;
+  height: 20px;
+  transition: all 0.2s;
+}
+:deep(.hamburger.is-active) {
+  transform: rotate(180deg);
+}
+</style>
+```
+
+我们单独抽离一个 navbar 组件
+
+src/layout/components/Navbar.vue
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger @toggleClick="toggleSidebar" :is-active="true" />
+  </div>
+</template>
+<script lang="ts" setup>
+const toggleSidebar = () => {
+  console.log("click");
+};
+</script>
+<style lang="scss" scoped>
+.navbar {
+  height: 50px;
+}
+</style>
+```
+
+src/layout/index.vue
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <sidebar></sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <!-- 换成navbar组件 -->
+        <navbar></navbar>
+        <div class="tags-view">tagsview</div>
+      </div>
+      <!-- <div class="app-main">
+        <h2>app main</h2>
+        <router-view></router-view>
+      </div> -->
+      <app-main></app-main>
+    </div>
+  </div>
+</template>
+```
+
+### 11.2 接入 pinia
+
+app store 针对一些后台设置状态存储 比如收缩状态 或配置状态
+
+src/stores/app.ts
+
+```ts
+import { defineStore } from "pinia";
+export const useAppStore = defineStore("app", () => {
+  const state = reactive({
+    sidebar: {
+      opened: true,
+    },
+  });
+  const sidebar = computed(() => state.sidebar);
+
+  const toggleSidebar = () => {
+    state.sidebar.opened = !state.sidebar.opened;
+  };
+
+  return {
+    sidebar,
+    toggleSidebar,
+  };
+});
+```
+
+### 11.3 使用 store 里 sidebar 状态
+
+navbar 组件中接入 store.sidebar
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger
+      @toggleClick="toggleSidebar"
+      :is-active="sidebar.opened"
+    ></hambuger>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { storeToRefs } from "pinia";
+import { useAppStore } from "@/stores/app";
+
+const store = useAppStore();
+const { sidebar } = storeToRefs(store);
+
+const toggleSidebar = () => {
+  store.toggleSidebar();
+};
+</script>
+```
+
+src/layout/components/Sidebar/index.vue
+
+改变了这个属性 **:collapse="sidebar.opened"**
+
+```vue
+<template>
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="scssVariables.menuActiveText"
+    :collapse="sidebar.opened"
+    :collapse-transition="true"
+  >
+    <sidebar-item
+      v-for="route in menuRoutes"
+      :key="route.path"
+      :item="route"
+      :base-path="route.path"
+    ></sidebar-item>
+  </el-menu>
+</template>
+
+<script lang="ts" setup>
+import scssVariables from '@/styles/variables.module.scss'
+import { useAppStore } from '@/stores/app'
+import { storeToRefs } from 'pinia'
+
+const store = useAppStore()
+const { sidebar } = storeToRefs(store)
+...
+</script>
+```

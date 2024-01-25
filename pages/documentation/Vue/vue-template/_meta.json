@@ -1,20 +1,9 @@
 {
-  "baseConfig": "1.基础配置",
-  "layout": "2.布局",
-  "svg": "3.svg组件",
-  "component": "4.组件库按需引入",
-  "sidebar": "5.sidebar组件",
-  "menu": "6.菜单",
-  "transition": "7.动画",
-  "menuCollapse": "8.菜单收缩按钮及介入 Pinia",
-  "breadcrumbs": "9.面包屑导航组件",
-  "fullScreen": "10.全屏组件切换按钮",
-  "sizeChange": "11.element 组件 size 切换",
-  "avatar": "12.添加用户头像 avatar 组件",
-  "tagView": "13.标签导航基本功能",
-  "name": "14.给组件添加 name 属性",
-  "clickRight": "14.右键菜单",
-  "themeChange": "15.动态修改主题",
-  "navChange": "16.标签导航显示切换",
-  "sidebarLogo": "侧边栏 logo 显示控制"
+  "one": "1",
+  "two": "2",
+  "three": "3",
+  "four": "4",
+  "five": "5",
+  "six": "6",
+  "ten": "7"
 }

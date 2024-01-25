@@ -1,0 +1,1027 @@
+## 12. Pinia 持久化
+
+### 12.1 菜单收缩状态进行 Pinia 状态持久化
+
+> 主要依赖 pinia 插件 pinia-plugin-persistedstate 可以选择 storage 或自定义 可以部分
+> 状态持久化
+
+[pinia-plugin-persistedstate](https://github.com/prazdevs/pinia-plugin-persistedstate)
+
+修改 src/main.ts
+
+```ts
+import { createPinia } from "pinia";
+import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
+const pinia = createPinia();
+pinia.use(piniaPluginPersistedstate);
+app.use(pinia);
+```
+
+修改 src/stores/app.ts
+
+```ts
+import { defineStore } from "pinia";
+export const useAppStore = defineStore(
+  "app",
+  () => {
+    const state = reactive({
+      sidebar: {
+        opened: true,
+      },
+    });
+    const sidebar = computed(() => state.sidebar);
+
+    const toggleSidebar = () => {
+      state.sidebar.opened = !state.sidebar.opened;
+    };
+
+    return {
+      sidebar,
+      toggleSidebar,
+    };
+  },
+  {
+    persist: {
+      storage: window.sessionStorage,
+      paths: ["state.sidebar.opened"],
+    },
+  }
+);
+```
+
+## 13. 面包屑导航组件
+
+:::tip
+利用的是路由的 route.matched 属性
+:::
+
+### 13.1 route.matched
+
+当路径是`/system/role`的时候会匹配到两条路径，`/system` 和 `/system/role` 就是会匹配父路径
+
+### 13.2 安装 path-to-regexp
+
+path-to-regexp 可以将动态路由路径/user/:id 转换成正则表达式。[Path-to-RegExp](https://github.com/pillarjs/path-to-regexp)
+
+```bash
+pnpm install path-to-regexp
+```
+
+:::tip
+这里我们要用它解决 面包屑导航是动态路由的情况下，点击面包屑导航 router.push 跳转时
+怎么把动态参数填充进去 拼接成正常路由 /user/:class/role/:id + {id: 2, class: 3} =>
+/user/3/role/2 然后正确跳转
+:::
+
+### 13.3 创建 Breadcrumb 组件
+
+src/components/Breadcrumb/index.vue
+
+```vue
+<template>
+  <el-breadcrumb class="app-breadcrumb breadcrumb-container" separator="/">
+    <el-breadcrumb-item v-for="(item, index) in levelList" :key="item.path">
+      <!-- 面包屑导航最后一个是不可点击的 因为最后一个正是当前所显示的路由 -->
+      <span v-if="index == levelList.length - 1" class="no-redirect">
+        {{ item.meta?.title }}
+      </span>
+      <a v-else @click.prevent="handleLink(item)">{{ item.meta?.title }}</a>
+    </el-breadcrumb-item>
+  </el-breadcrumb>
+</template>
+
+<script lang="ts" setup>
+import type { RouteLocationMatched, RouteLocationRaw } from "vue-router";
+import { compile } from "path-to-regexp";
+type PartialRouteLocationMatched = Partial<RouteLocationMatched>;
+
+// 相当于this.$route对象
+const route = useRoute();
+// 相当于this.$router对象
+const router = useRouter();
+// 导航列表存放matched里筛选的路由记录
+const levelList = ref<Array<PartialRouteLocationMatched>>([]);
+
+const isDashboard = (route?: PartialRouteLocationMatched) => {
+  const name = route && route.name;
+  if (!name) {
+    return false;
+  }
+  return (
+    (name as string).trim().toLocaleLowerCase() ===
+    "Dashboard".toLocaleLowerCase()
+  );
+};
+
+//获取面包屑导航
+const getBreadcrumb = () => {
+  // 对匹配的路由进行过滤 过滤掉没有title属性的路由，没有title就无法作为面包屑导航
+  let matched = route.matched.filter(
+    (item) => item.meta && item.meta.title
+  ) as PartialRouteLocationMatched[];
+
+  console.log(matched, "matched");
+
+  // 获取第一个匹配路由记录
+  const first = matched[0];
+  // 我们要把dashboard作为首页 始终固定在面包屑导航第一个 Dashboard/System/MenuManagement
+  // 如果第一个匹配到的路由记录不是dashboard 我们自己就把它放在记录数组的第一项
+  if (!isDashboard(first)) {
+    matched = (
+      [
+        {
+          path: "/dashboard",
+          meta: {
+            title: "Dashboard",
+          },
+        },
+      ] as PartialRouteLocationMatched[]
+    ).concat(matched);
+  }
+
+  levelList.value = matched.filter(
+    (item) => item.meta && item.meta.title && item.meta.breadcrumb !== false
+  );
+};
+
+watch(
+  () => route.path,
+  () => getBreadcrumb(),
+  { immediate: true }
+);
+
+// 主要是针对 动态路由 /user/:id 进行动态参数填充
+const pathCompile = (path: string) => {
+  // 根据路径变编译成正则函数 并接收具体参数 比如根据正则/user/:id 帮你将:id替换成具体路径
+  const toPath = compile(path); // 比如 path /user/:id
+  const params = route.params; // {id: 10}
+  return toPath(params); // toPath({ id: 10 }) => /user/10 返回填充后的路径
+};
+
+const handleLink = (route: PartialRouteLocationMatched[]) => {
+  const { path, redirect } = route;
+  if (redirect) {
+    router.push(redirect as RouteLocationRaw);
+    return;
+  }
+  router.push(pathCompile(path!));
+};
+</script>
+
+<style lang="scss" scoped>
+.app-breadcrumb.el-breadcrumb {
+  display: inline-block;
+  /* float: left; */
+  line-height: 50px;
+  font-size: 14px;
+  margin-left: 8px;
+}
+.no-redirect {
+  color: #97a8be;
+  cursor: text;
+}
+</style>
+
+<style lang="scss">
+.breadcrumb-enter-active,
+.breadcrumb-leave-active {
+  transition: all 0.5s;
+}
+.breadcrumb-enter,
+.breadcrumb-leave-active {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.breadcrumb-leave-active {
+  position: absolute;
+}
+.breadcrumb-move {
+  transition: all 0.5s;
+}
+</style>
+```
+
+src/layout/components/Navbar.vue 引入 breadcrumb 组件
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger @toggleClick="toggleSidebar" :is-active="sidebar.opened" />
+    <breadcrumb></breadcrumb>
+  </div>
+</template>
+```
+
+## 14.全屏组件切换按钮
+
+> navbar 导航添加全屏切换按钮
+
+### 14.1 实现 Screenfull 组件
+
+**安装**
+
+> pnpm install screenfull
+
+src/components/Screenfull/index.vue
+
+```vue
+<template>
+  <svg-icon
+    :icon-class="isFullscreen ? 'exit-fullscreen' : 'fullscreen'"
+    @click="handleClick"
+  />
+</template>
+
+<script lang="ts" setup>
+import screenfull from "screenfull";
+import { onMounted } from "vue";
+
+const { proxy } = getCurrentInstance()!;
+
+const isFullscreen = ref(false);
+
+const handleClick = () => {
+  if (screenfull.isEnabled) {
+    // 浏览器是否允许全屏
+    screenfull.toggle();
+    return;
+  }
+  return proxy?.$message({
+    message: "you browser can not work",
+    type: "warning",
+  });
+};
+
+const change = () => {
+  isFullscreen.value = screenfull.isFullscreen;
+};
+
+onMounted(() => {
+  if (screenfull.isEnabled) {
+    screenfull.on("change", change);
+  }
+});
+</script>
+```
+
+**导入组件**
+src/layout/components/Navbar.vue
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger
+      @toggleClick="toggleSidebar"
+      :is-active="sidebar.opened"
+    ></hambuger>
+    <breadcrumb></breadcrumb>
+    <div class="right-menu">
+      <screenfull class="right-menu-item hover-effect"></screenfull>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { storeToRefs } from "pinia";
+import { useAppStore } from "@/stores/app";
+
+const store = useAppStore();
+const { sidebar } = storeToRefs(store);
+
+const toggleSidebar = () => {
+  store.toggleSidebar();
+};
+</script>
+
+<style lang="scss" scoped>
+.navbar {
+  // height: 50px;
+  display: flex;
+  .right-menu {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+  }
+}
+</style>
+```
+
+## 15. element 组件 size 切换
+
+### 15.1 定义类型
+
+src/plugins/element.ts
+
+```ts
+export type Size = "default" | "large" | "small";
+```
+
+### 15.2 创建 sizeSelect 组件
+
+```vue
+<template>
+  <el-dropdown trigger="click" @command="handleSize">
+    <div>
+      <svg-icon class-name="size-icon" icon-class="size"></svg-icon>
+    </div>
+    <template #dropdown>
+      <el-dropdown-menu>
+        <el-dropdown-item
+          v-for="item in sizeOptions"
+          :key="item.value"
+          :command="item.value"
+          :disabled="item.value === size"
+        >
+          {{ item.label }}
+        </el-dropdown-item>
+      </el-dropdown-menu>
+    </template>
+  </el-dropdown>
+</template>
+
+<script lang="ts" setup>
+import { Size } from "@/plugins/element";
+import { useAppStore } from "@/stores/app";
+import { storeToRefs } from "pinia";
+
+const store = useAppStore();
+const { size } = storeToRefs(store);
+
+const { proxy } = getCurrentInstance()!;
+const sizeOptions = ref([
+  { label: "Default", value: "default" },
+  { label: "Large", value: "large" },
+  { label: "Small", value: "small" },
+]);
+
+const handleSize = (command: Size) => {
+  store.setSize(command);
+  proxy?.$message.success({
+    type: "success",
+    message: "Switch Size Success",
+  });
+};
+</script>
+<style lang="scss">
+.size-icon {
+  font-size: 18px;
+}
+</style>
+```
+
+`navbar`中导入组件并调整样式
+
+src/layout/components/Navbar.vue
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger
+      @toggleClick="toggleSidebar"
+      :is-active="sidebar.opened"
+    ></hambuger>
+    <breadcrumb></breadcrumb>
+    <div class="right-menu">
+      <screenfull class="right-menu-item hover-effect"></screenfull>
+
+      <el-tooltip content="Global Size" effect="dark">
+        <size-select class="right-menu-item hover-effect" />
+      </el-tooltip>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { storeToRefs } from "pinia";
+import { useAppStore } from "@/stores/app";
+
+const store = useAppStore();
+const { sidebar } = storeToRefs(store);
+
+const toggleSidebar = () => {
+  store.toggleSidebar();
+};
+</script>
+
+<style lang="scss" scoped>
+.navbar {
+  // height: 50px;
+  display: flex;
+  .right-menu {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    &-item {
+      padding: 0 8px;
+      font-size: 18px;
+      color: #5a5e66;
+      vertical-align: text-bottom;
+      &.hover-effect {
+        cursor: pointer;
+        transition: background 0.3s;
+        &:hover {
+          background: rgba(0, 0, 0, 0.025);
+        }
+      }
+    }
+  }
+}
+</style>
+```
+
+### 15.3 size 属性添加到 store
+
+修改 src/stores/app.ts
+
+```ts
+import { defineStore } from "pinia";
+import { Size } from "@/plugins/element";
+
+interface stateType {
+  sidebar: sidebarType;
+  size: Size;
+}
+
+interface sidebarType {
+  opened: boolean;
+}
+
+export const useAppStore = defineStore(
+  "app",
+  () => {
+    const state = reactive<stateType>({
+      sidebar: {
+        opened: true,
+      },
+      size: "default",
+    });
+    const sidebar = computed(() => state.sidebar);
+    const size = computed(() => state.size);
+
+    const toggleSidebar = () => {
+      state.sidebar.opened = !state.sidebar.opened;
+    };
+    const setSize = (size: Size) => {
+      state.size = size;
+    };
+
+    return {
+      state,
+      sidebar,
+      size,
+      setSize,
+      toggleSidebar,
+    };
+  },
+  {
+    persist: {
+      storage: window.sessionStorage,
+      paths: ["state.sidebar.opened", "state.size"],
+    },
+  }
+);
+```
+
+:::tip
+注意这里的 `stateType`、`sidebarType` 这两个类型，如果不定义的话，在 App.vue 中 `el-config-provider` 的 `size` 属性会提示错误，解决的方法有两种：
+
+1. size as any
+2. 在定义 size 的时候就给上类型即可
+   :::
+
+### 15.4 设置组件 siz
+
+src/components/SizeSelect/index.vue
+
+```ts
+import { useAppStore } from "@/stores/app";
+import { storeToRefs } from "pinia";
+
+const store = useAppStore();
+const { size } = storeToRefs(store);
+```
+
+将 `size` 应用在 `App.vue` 中
+
+```vue
+<template>
+  <el-config-provider :size="size">
+    <router-view></router-view>
+  </el-config-provider>
+</template>
+
+<script setup lang="ts">
+import { useAppStore } from "@/stores/app";
+import { storeToRefs } from "pinia";
+const store = useAppStore();
+const { size } = storeToRefs(store);
+</script>
+```
+
+### 15.5 组件国际化
+
+```vue
+<template>
+  <el-config-provider :size="size" :locale="zhCn">
+    <router-view></router-view>
+  </el-config-provider>
+</template>
+<script setup lang="ts">
+import zhCn from "element-plus/dist/locale/zh-cn.mjs";
+</script>
+```
+
+这里还需要在 `src/vite-env.d.ts` 中添加类型声明
+
+```ts
+declare module "element-plus/dist/locale/zh-cn.mjs";
+```
+
+## 16. 添加用户头像 avatar 组件
+
+### 16.1 创建 avatar 组件
+
+src/components/Avatar/index.vue
+
+```vue
+<template>
+  <el-dropdown class="avatar-container">
+    <div class="avatar-wrapper">
+      <img :src="avatar" class="user-avatar" />
+      <i class="el-icon-caret-bottom" />
+    </div>
+    <template #dropdown>
+      <el-dropdown-menu>
+        <router-link to="/">
+          <el-dropdown-item>首页</el-dropdown-item>
+        </router-link>
+        <router-link to="/profile/index">
+          <el-dropdown-item>个人设置</el-dropdown-item>
+        </router-link>
+        <el-dropdown-item divided @click="logout">
+          <span style="display: block">退出登录</span>
+        </el-dropdown-item>
+      </el-dropdown-menu>
+    </template>
+  </el-dropdown>
+</template>
+
+<script lang="ts" setup>
+import avatar from "@/assets/vue.svg";
+const logout = () => {
+  console.log("退出登录");
+};
+</script>
+
+<style lang="scss" scoped>
+.avatar-container {
+  margin-right: 30px;
+  .avatar-wrapper {
+    margin-top: 5px;
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .el-icon-caret-bottom {
+      cursor: pointer;
+      font-size: 12px;
+    }
+  }
+}
+</style>
+```
+
+### 16.2 navbar 中导入组件
+
+src/layout/components/Navbar.vue
+
+```vue
+<template>
+  <div class="navbar">
+    <hambuger @toggleClick="toggleSidebar" :is-active="sidebar.opened" />
+    <breadcrumb></breadcrumb>
+    <div class="right-menu">
+      <screenfull class="right-menu-item hover-effect"></screenfull>
+      <!-- element组件size切换 -->
+      <el-tooltip content="Global Size" effect="dark" placement="bottom">
+        <size-select class="right-menu-item hover-effect" />
+      </el-tooltip>
+      <avatar />
+    </div>
+  </div>
+</template>
+```
+
+## 17. 标签导航基本功能
+
+### 17.1 定义 store
+
+src/stores/tagsView.ts
+
+```ts
+import { defineStore } from "pinia";
+import { RouteLocationNormalizedLoaded } from "vue-router";
+export const useTagsView = defineStore("tag", () => {
+  const visitedViews = ref<RouteLocationNormalizedLoaded[]>([]);
+  // 添加视图
+  const addView = (view: RouteLocationNormalizedLoaded) => {
+    // 去重
+    if (visitedViews.value.some((v) => v.path === view.path)) return;
+    // 没有title的处理
+    visitedViews.value.push(
+      Object.assign({}, view, {
+        title: view.meta?.title || "tag-name",
+      })
+    );
+  };
+  // 删除视图
+  const delView = (view: RouteLocationNormalizedLoaded) => {
+    const i = visitedViews.value.indexOf(view);
+    if (i > -1) {
+      visitedViews.value.splice(i, 1);
+    }
+  };
+  return { visitedViews, addView, delView };
+});
+```
+
+### 17.2 创建 TagsView 组件
+
+src/layout/components/TagsView/index.vue
+
+```vue
+<template>
+  <div class="tags-view-container">
+    <div class="tags-view-wrapper">
+      <!-- 一个个tag view就是router-link -->
+      <router-link
+        class="tags-view-item"
+        :class="{
+          active: isActive(tag),
+        }"
+        v-for="(tag, index) in visitedViews"
+        :key="index"
+        :to="{ path: tag.path, query: tag.query }"
+      >
+        <span>{{ tag.meta.title }}</span>
+        <el-icon class="icon-close">
+          <CloseBold @click.prevent.stop="closeSelectedTag(tag)" />
+        </el-icon>
+      </router-link>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { useTagsView } from "@/stores/tagsView";
+import { storeToRefs } from "pinia";
+import { RouteLocationNormalized } from "vue-router";
+import { CloseBold } from "@element-plus/icons-vue";
+const store = useTagsView();
+const { visitedViews } = storeToRefs(store);
+const route = useRoute();
+// 从store里获取 可显示的tags view
+// 添加tag
+const addTags = () => {
+  const { name } = route;
+  if (name) {
+    store.addView(route);
+  }
+};
+watch(
+  () => route.path,
+  () => {
+    addTags();
+  },
+  { immediate: true }
+);
+// 是否是当前应该激活的tag
+const isActive = (tag: RouteLocationNormalized) => {
+  return tag.path === route.path;
+};
+
+// 关闭当前右键的tag路由
+const closeSelectedTag = (view: RouteLocationNormalized) => {
+  store.delView(view);
+};
+</script>
+<style lang="scss" scoped>
+.tags-view-container {
+  width: 100%;
+  height: 34px;
+  background: #fff;
+  border-bottom: 1px solid #d8dce5;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 0 3px 0 rgba(0, 0, 0, 0.04);
+  .tags-view-wrapper {
+    .tags-view-item {
+      display: inline-block;
+      height: 26px;
+      line-height: 26px;
+      border: 1px solid #d8dce5;
+      background: #fff;
+      color: #495060;
+      padding: 0 8px;
+      box-sizing: border-box;
+      font-size: 12px;
+      margin-left: 5px;
+      margin-top: 4px;
+      &:first-of-type {
+        margin-left: 15px;
+      }
+      &:last-of-type {
+        margin-right: 15px;
+      }
+      &.active {
+        background-color: #42b983;
+        color: #fff;
+        border-color: #42b983;
+        &::before {
+          position: relative;
+          display: inline-block;
+          content: "";
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          margin-right: 5px;
+          background: #fff;
+        }
+      }
+    }
+    span {
+      vertical-align: middle;
+    }
+  }
+  .icon-close {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    position: relative;
+    left: 2px;
+    border-radius: 50%;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    transform-origin: 100% 50%;
+    &:before {
+      transform: scale(0.6);
+      display: inline-block;
+      vertical-align: -1px;
+    }
+    &:hover {
+      background-color: #b4bccc;
+      color: #fff;
+    }
+  }
+}
+</style>
+```
+
+> 这里需要安装 pnpm i @element-plus/icons-vue 图标库
+
+src/layout/index.vue 中引入 tagsView 组件
+
+```vue
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">
+      <Sidebar></Sidebar>
+    </div>
+    <div class="main-container">
+      <div class="header">
+        <navbar></navbar>
+        <!-- 加了这里 -->
+        <tags-view></tags-view>
+      </div>
+      <app-main></app-main>
+    </div>
+  </div>
+</template>
+```
+
+修改 navbar 样式
+
+src/layout/components/Navbar.vue
+
+```scss
+.navbar {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 21, 41, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+}
+```
+
+## 18. 标签导航删除选中处理
+
+> 当删除的是激活状态 tag 时，我就让剩下集合中最后一个为激活态并跳转到对应路由
+
+### 18.1 修改 tagviews 组件
+
+> 删除后 调用 toLastView 方法，从剩下集合中得到最后一个路由 tag 触发路由跳转 即可
+
+```ts
+// 关闭当前右键的tag路由
+const closeSelectedTag = (view: RouteLocationNormalized) => {
+  store.delView(view);
+  if (isActive(view)) {
+    toLastView(visitedViews.value, view);
+  }
+};
+
+const router = useRouter();
+const toLastView = (
+  visitedViews: RouteLocationNormalized[],
+  view: RouteLocationNormalized
+) => {
+  // 得到集合中最后一项的tag view 可能没有
+  const lastView = visitedViews[visitedViews.length - 1];
+  if (lastView) {
+    router.push(lastView.path);
+  } else {
+    // 集合中都没有tag view时
+    // 如果刚刚删除的正是Dashboard 就重定向回Dashboard（首页）
+    if (view.name === "Dashboard") {
+      router.push({ path: view.path });
+    } else {
+      // tag都没有了 删除的也不是Dashboard 只能跳转首页
+      router.push("/");
+    }
+  }
+};
+```
+
+## 19. 标签导航支持固定 tag
+
+> 通过路由 meta 里添加 affix 属性为 true，就让当前路由 tag 始终固定在标签导航
+
+### 19.1 Dashboard 路由 meta 中添加 affix: true
+
+### 19.2 修改 tagsView 组件
+
+在页面最开始加载的时候就要筛选出有 affix 的路由，渲染到页面上，并且不显示关闭的 icon
+
+src/layout/components/TagsView/index.vue
+
+```vue
+<template>
+  <el-icon class="icon-close" v-if="!isAffix(tag)">
+    <CloseBold @click.prevent.stop="closeSelectedTag(tag)" />
+  </el-icon>
+</template>
+<script lang="ts" setup>
+import { RouteLocationNormalized, RouteRecordRaw } from "vue-router";
+import path from "path-browserify";
+import { routes } from "@/router";
+const filterAffixTags = (routes: RouteRecordRaw[], basePath = "/") => {
+  let tags: RouteLocationNormalized[] = [];
+  routes.forEach((route) => {
+    if (route.meta && route.meta.affix) {
+      // 把路由路径解析成完整路径，路由可能是相对路径
+      const tagPath = path.resolve(basePath, route.path);
+      tags.push({
+        name: route.name,
+        path: tagPath,
+        meta: { ...route.meta },
+      } as RouteLocationNormalized);
+    }
+    // 深度优先遍历 子路由（子路由路径可能相对于route.path父路由路径）
+    if (route.children) {
+      const childTags = filterAffixTags(route.children, route.path);
+      if (childTags.length) {
+        tags = [...tags, ...childTags];
+      }
+    }
+  });
+  return tags;
+};
+const initTags = () => {
+  const affixTags = filterAffixTags(routes);
+  for (const tag of affixTags) {
+    if (tag.name) {
+      store.addView(tag);
+    }
+  }
+};
+const isAffix = (tag: RouteLocationNormalized) => {
+  return tag.meta && tag.meta.affix;
+};
+onMounted(() => {
+  initTags();
+});
+</script>
+```
+
+## 20. 标签导航支持横向滑动
+
+> 当标签导航太多时，超出页面宽度时，可以左右横向滑动
+
+### 20.1 添加 scrollbar 组件
+
+创建 ScrollPanel 组件
+
+src/layout/components/TagsView/ScrollPanel.vue
+
+```vue
+<template>
+  <el-scrollbar wrap-class="scroll-wrapper">
+    <slot />
+  </el-scrollbar>
+</template>
+<style lang="scss">
+.scroll-wrapper {
+  position: relative;
+  width: 100%;
+  white-space: nowrap;
+}
+</style>
+```
+
+### 20.2 修改 tagsview
+
+用 scrollpanel 组件包裹 tagsview 组件
+
+```vue
+<template>
+  <div class="tags-view-container">
+    +
+    <scroll-panel>
+      <div class="tags-view-wrapper">
+        <!-- 一个个tag view就是router-link -->
+        <router-link
+          class="tags-view-item"
+          :class="{
+            active: isActive(tag),
+          }"
+          v-for="(tag, index) in visitedViews"
+          :key="index"
+          :to="{ path: tag.path, query: tag.query }"
+        >
+          <span>{{ tag.meta.title }}</span>
+          <el-icon class="icon-close" v-if="!isAffix(tag)">
+            <CloseBold @click.prevent.stop="closeSelectedTag(tag)" />
+          </el-icon>
+        </router-link>
+      </div>
+      +
+    </scroll-panel>
+  </div>
+</template>
+<style lang="scss" scoped>
+.tags-view-container {
+ width: 100%;
+ height: 34px;
+ background: #fff;
+ border-bottom: 1px solid #d8dce5;
+ box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 0 3px 0 rgba(0, 0, 0,
+0.04);
++ overflow: hidden;
+}
+</style>
+```
+
+### 20.3 注意使用标签导航
+
+> 使用标签导航的路由 必须要 name 属性 因为方便我们根据 name 进行路由筛选和缓存 keep-alive
+
+给 `menu` `role` `user` 添加 name 属性，因为 tagView 里面是根据 name 筛选的
+
+```ts
+children: [
+  {
+    path: "menu",
+    name: "Menu Management",
+    component: () =>
+      import(/* webpackChunkName: "menu" */ "@/views/system/menu.vue"),
+    meta: {
+      title: "Menu Management",
+      icon: "list",
+      hidden: true,
+    },
+  },
+  {
+    path: "role",
+    name: "Role Management",
+    component: () =>
+      import(/* webpackChunkName: "role" */ "@/views/system/role.vue"),
+    meta: {
+      title: "Role Management",
+      icon: "list",
+    },
+  },
+  {
+    path: "user",
+    name: "User Management",
+    component: () =>
+      import(/* webpackChunkName: "user" */ "@/views/system/user.vue"),
+    meta: {
+      title: "User Management",
+      icon: "list",
+    },
+  },
+];
+```

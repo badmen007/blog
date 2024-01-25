@@ -1,0 +1,864 @@
+## 25. 侧边栏 logo 显示控制
+
+### 25.1 store 中添加状态
+
+src/stores/settings.ts
+
+```ts
+import variables from "@/styles/variables.module.scss";
+import { defineStore } from "pinia";
+
+export const useSettingsStore = defineStore(
+  "settings",
+  () => {
+    // theme是用户选择的主题
+    // originalTheme是现在生效的主题, 刷新需要重新生成无需存放到sessionStorage中
+    const settings = reactive({
+      theme: variables.theme,
+      originalTheme: "",
+      tagsView: true,
+      sidebarLogo: true,
+    });
+    type ISettings = typeof settings;
+    type ValueOf<T> = T[keyof T];
+
+    // 修改设置
+    const changeSetting = ({
+      key,
+      value,
+    }: {
+      key: keyof ISettings;
+      value: ValueOf<ISettings>;
+    }) => {
+      if (key in settings) {
+        (settings[key] as ValueOf<ISettings>) = value;
+      }
+    };
+
+    return { settings, changeSetting };
+  },
+  {
+    persist: {
+      storage: window.sessionStorage,
+      paths: ["settings.theme", "settings.tagsView", "settings.sidebarLogo"],
+    },
+  }
+);
+```
+
+### 25.2 修改 Settings
+
+src/layout/components/Settings/index.vue
+
+```vue
+<template>
+  <div class="drawer-container">
+    ...
+    <div class="drawer-item">
+      <span>Sidebar Logo</span>
+      <el-switch v-model="showSidebarLogo" class="drawer-switch"></el-switch>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { useSettingsStore } from "@/stores/settings";
+
+const settingStore = useSettingsStore();
+
+const showSidebarLogo = computed({
+  get() {
+    return settingStore.settings.sidebarLogo;
+  },
+  set(val) {
+    settingStore.changeSetting({
+      key: "sidebarLogo",
+      value: val,
+    });
+  },
+});
+</script>
+```
+
+### 25.3 创建 logo 组件
+
+```vue
+<template>
+  <div class="sidebar-logo-container" :class="{ collapse: collapse }">
+    <transition name="sidebarLogoFade">
+      <!-- sidebar收起状态下 -->
+      <router-link
+        v-if="collapse"
+        key="collapse"
+        to="/"
+        class="sidebar-logo-link"
+      >
+        <img
+          v-if="logo"
+          :src="logo"
+          class="sidebar-logo"
+          alt="VueElementAdmin"
+        />
+        <h1 v-else class="sidebar-title">{{ title }}</h1>
+      </router-link>
+      <router-link v-else key="expand" to="/" class="sidebar-logo-link">
+        <img
+          v-if="logo"
+          :src="logo"
+          class="sidebar-logo"
+          alt="VueElementAdmin"
+        />
+        <h1 class="sidebar-title">{{ title }}</h1>
+      </router-link>
+    </transition>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import logo from "@/assets/vue.svg";
+defineProps({
+  collapse: {
+    type: Boolean,
+    required: true,
+  },
+});
+const title = "Vue Element Admin";
+</script>
+
+<style lang="scss" scoped>
+.sidebar-logo-container {
+  width: 100%;
+  height: 50px;
+  line-height: 50px;
+  text-align: center;
+  background: #2b2f3a;
+  overflow: hidden;
+  .sidebar-logo-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    .sidebar-logo {
+      width: 32px;
+      height: 32px;
+      vertical-align: middle;
+      margin-right: 12px;
+    }
+    .sidebar-title {
+      display: inline-block;
+      color: #fff;
+      margin: 0;
+      font-weight: 600;
+      line-height: 50px;
+      font-size: 14px;
+      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
+      vertical-align: middle;
+    }
+  }
+  &.collapse {
+    .sidebar-logo {
+      margin-right: 0;
+    }
+  }
+}
+.sidebarLogoFade-enter-active {
+  transition: opacity 1.5s;
+}
+.sidebarLogoFade-enter-from,
+.sidebarLogoFade-leave-to {
+  opacity: 0;
+}
+</style>
+```
+
+### 25.4 sidebar 里添加 logo
+
+```vue
+<template>
+  <logo v-if="showLogo" :collapse="isCollapse" />
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="themeColor"
+    :collapse="sidebar.opened"
+    :collapse-transition="true"
+  >
+    <!-- 循环sidebar-item组件 -->
+    <sidebar-item
+      v-for="route in menuRoutes"
+      :key="route.path"
+      :item="route"
+      :base-path="route.path"
+    />
+  </el-menu>
+</template>
+<script lang="ts" setup>
+// ...
+// 是否显示logo
+const showLogo = computed(() => settingStore.settings.sidebarLogo);
+// 展开收起状态 稍后放store 当前是展开就让它收起
+const isCollapse = computed(() => store.sidebar.opened);
+</script>
+```
+
+## 26. 侧边栏支持滚动
+
+### 26.1 修改 sidebar
+
+> sidebar 组件中添加 scrollPanel 组件
+
+src/layout/components/Sidebar/index.vue
+
+```vue
+<template>
+  <div class="sidebar-wrapper">
+    <logo v-if="showLogo" :collapse="isCollapse" />
+    <scroll-panel>
+      <el-menu
+        class="sidebar-container-menu"
+        mode="vertical"
+        :default-active="activeMenu"
+        :background-color="scssVariables.menuBg"
+        :text-color="scssVariables.menuText"
+        :active-text-color="themeColor"
+        :collapse="sidebar.opened"
+        :collapse-transition="true"
+      >
+        <!-- 循环sidebar-item组件 -->
+        <sidebar-item
+          v-for="route in menuRoutes"
+          :key="route.path"
+          :item="route"
+          :base-path="route.path"
+        />
+      </el-menu>
+    </scroll-panel>
+  </div>
+</template>
+<script lang="ts" setup>
+const logoHeight = computed(() => (showLogo.value ? 50 : 0) + "px");
+</script>
+<style lang="scss" scoped>
+.sidebar-wrapper {
+  .sidebar-container-menu {
+    height: calc(100vh - v-bind(logoHeight));
+  }
+}
+</style>
+```
+
+### 26.2 scrollPanel 组件
+
+> 之前在 tagsview 文件夹里就有 scrollPanel 组件， 可以共用一个， 从
+> layout/components/TagsView 里 把 ScrollPanel.vue 移动到 src/components 里
+
+## 27. 登录页基本布局
+
+### 27.1 注册登录路由
+
+src/router/index.ts
+
+> 注册 login 路由 放到 constantRoutes 集合里
+
+```ts
+const constantRoutes: Array<RouteRecordRaw> = [
+  //....
+  {
+    path: "/login",
+    name: "Login",
+    component: () => import("@/views/login/index.vue"),
+  },
+];
+```
+
+### 27.2 创建 login 路由页面
+
+src/views/login/index.vue
+
+```vue
+<template>
+  <div class="login-container">
+    <el-form class="login-form">
+      <div class="admin-logo">
+        <img class="logo" src="../../assets/vue.svg" alt="logo" />
+        <h1 class="name">Vue3 Admin</h1>
+      </div>
+      <el-form-item prop="username">
+        <el-input placeholder="请输入用户名">
+          <template #prepend>
+            <span class="svg-container">
+              <svg-icon icon-class="user"></svg-icon>
+            </span>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-form-item>
+        <el-input
+          type="password"
+          placeholder="请输入密码"
+          autocomplete="on"
+          show-password
+        >
+          <template #prepend>
+            <span class="svg-container">
+              <svg-icon icon-class="password"></svg-icon>
+            </span>
+          </template>
+        </el-input>
+      </el-form-item>
+      <!-- 登录按钮 -->
+      <el-button
+        type="primary"
+        style="width: 100%; margin-bottom: 30px"
+        :loading="loading"
+        @click="handleLogin"
+        >Login</el-button
+      >
+    </el-form>
+  </div>
+</template>
+<script lang="ts" setup>
+const loading = ref(false);
+const handleLogin = () => {
+  console.log("login");
+};
+</script>
+<style lang="scss">
+$bg: #283443;
+$light_gray: #fff;
+$cursor: #fff;
+.login-container {
+  .el-form-item {
+    .el-input {
+      height: 40px;
+    }
+  }
+}
+</style>
+<style lang="scss" scoped>
+$bg: #2d3a4b;
+$dark_gray: #889aa4;
+$light_gray: #eee;
+.login-container {
+  min-height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-position: 50%;
+  background-size: 100%;
+  .login-form {
+    position: relative;
+    width: 500px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 140px 35px 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    .admin-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      .logo {
+        width: 60px;
+        height: 60px;
+      }
+      .name {
+        font-weight: normal;
+        margin-left: 10px;
+      }
+    }
+  }
+}
+</style>
+```
+
+## 28.登录效验和数据绑定
+
+### 28.1 修改登录页
+
+> 添加数据效验和绑定
+
+src/views/login/index.vue
+
+```vue
+<template>
+  <div class="login-container">
+    <el-form
+      class="login-form"
+      :model="loginForm"
+      :rules="loginRules"
+      ref="loginFormRef"
+    >
+      <div class="admin-logo">
+        <img class="logo" src="../../assets/vue.svg" alt="logo" />
+        <h1 class="name">Vue3 Admin</h1>
+      </div>
+      <el-form-item prop="username">
+        <el-input
+          placeholder="请输入用户名"
+          v-model="loginForm.username"
+          ref="usernameRef"
+          autocomplete="off"
+          tabindex="1"
+        >
+          <template #prepend>
+            <span class="svg-container">
+              <svg-icon icon-class="user"></svg-icon>
+            </span>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-form-item prop="password">
+        <el-input
+          type="password"
+          v-model="loginForm.password"
+          placeholder="请输入密码"
+          autocomplete="off"
+          show-password
+          tabindex="2"
+        >
+          <template #prepend>
+            <span class="svg-container">
+              <svg-icon icon-class="password"></svg-icon>
+            </span>
+          </template>
+        </el-input>
+      </el-form-item>
+      <!-- 登录按钮 -->
+      <el-button
+        type="primary"
+        style="width: 100%; margin-bottom: 30px"
+        :loading="loading"
+        @click="handleLogin"
+        >Login</el-button
+      >
+    </el-form>
+  </div>
+</template>
+<script lang="ts" setup>
+import { FormInstance } from "element-plus";
+
+const loading = ref(false);
+// ref
+const loginFormRef = ref<FormInstance | null>(null);
+// username
+const usernameRef = ref<HTMLInputElement | null>(null);
+// password
+const passwordRef = ref<HTMLInputElement | null>(null);
+
+const loginState = reactive({
+  loginForm: {
+    username: "",
+    password: "",
+  },
+  loginRules: {
+    username: [
+      {
+        required: true,
+        trigger: "blur",
+        message: "请输入用户名！",
+      },
+    ],
+    password: [
+      {
+        required: true,
+        trigger: "blur",
+        message: "请输入密码",
+      },
+    ],
+  },
+});
+
+const handleLogin = () => {
+  loginFormRef.value?.validate((valid) => {
+    if (valid) {
+      console.log(loginState.loginForm);
+    }
+  });
+};
+// 解构
+const { loginForm, loginRules } = toRefs(loginState);
+// 自动获取焦点
+onMounted(() => {
+  if (loginState.loginForm.username === "") {
+    usernameRef.value?.focus();
+  } else if (loginState.loginForm.password === "") {
+    passwordRef.value?.focus();
+  }
+});
+</script>
+<style lang="scss">
+$bg: #283443;
+$light_gray: #fff;
+$cursor: #fff;
+.login-container {
+  .el-form-item {
+    .el-input {
+      height: 40px;
+    }
+  }
+}
+</style>
+<style lang="scss" scoped>
+$bg: #2d3a4b;
+$dark_gray: #889aa4;
+$light_gray: #eee;
+.login-container {
+  min-height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-position: 50%;
+  background-size: 100%;
+  .login-form {
+    position: relative;
+    width: 500px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 140px 35px 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    .admin-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      .logo {
+        width: 60px;
+        height: 60px;
+      }
+      .name {
+        font-weight: normal;
+        margin-left: 10px;
+      }
+    }
+  }
+}
+</style>
+```
+
+## 29. 接入登录接口
+
+### 29.1 环境变量配置
+
+vue3-element-admin 根目录下创建环境变量文件，生产环境这里只是写个假的
+
+.env.development
+
+> VITE_BASE_API = /dev-api
+
+.env.production
+
+> VITE_BASE_API = /prod-api
+
+**utils 里封装 token 存储操作方法**
+
+src/utils/auth.ts
+
+```ts
+const tokenKey = "V3-Admin-Token";
+export const getToken = (): string | null => {
+  return localStorage.getItem(tokenKey);
+};
+export const setToken = (token: string): void => {
+  return localStorage.setItem(tokenKey, token);
+};
+export const removeToken = (): void => {
+  return localStorage.removeItem(tokenKey);
+};
+```
+
+### 29.2 创建 api
+
+**封装 request.ts**
+
+```bash
+pnpm install axios
+```
+
+src/api/config/request.ts
+
+```ts
+import axios from "axios";
+import { getToken } from "../../utils/auth";
+import { ElMessage } from "element-plus";
+const service = axios.create({
+  baseURL: import.meta.env.VITE_BASE_API,
+  timeout: 100000,
+});
+service.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      // 携带token
+      config.headers!.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    console.log(error);
+    return Promise.reject(error);
+  }
+);
+service.interceptors.response.use(
+  (response) => {
+    const { code, message } = response.data;
+    if (code !== 0) {
+      // 错误提示
+      ElMessage.error(message);
+      return Promise.reject(message);
+    }
+    return response.data;
+  },
+  (error) => {
+    console.log("err" + error); // for debug
+    return Promise.reject(error);
+  }
+);
+export default service;
+```
+
+**封装响应类型**
+
+src/api/type.ts
+
+```ts
+export interface ApiResponse<T = any> {
+  code: number;
+  data: T;
+  message?: string;
+}
+```
+
+**创建 user api**
+
+src/api/user.ts
+
+```ts
+import request from "@/api/config/request";
+import { ApiResponse } from "./type";
+interface UserLoginData {
+  username: string;
+  password: string;
+}
+interface LoginResponseData {
+  token: string;
+}
+export const login = (
+  data: UserLoginData
+): Promise<ApiResponse<LoginResponseData>> => {
+  return request.post("/auth/login", data);
+};
+```
+
+### 29.3 创建 userStore
+
+src/stores/user.ts
+
+```ts
+import { defineStore } from "pinia";
+import { login as loginApi } from "@/api/config/user";
+import { setToken } from "@/utils/auth";
+// login params
+export interface IUserInfo {
+  username: string;
+  password: string;
+}
+export const useUserStore = defineStore("user", () => {
+  // 状态
+  const state = reactive({
+    token: "",
+  });
+  const login = async (userInfo: IUserInfo) => {
+    try {
+      const { username, password } = userInfo;
+      const response = await loginApi({ username: username.trim(), password });
+      const { data } = response;
+      state.token = data.token;
+      setToken(data.token);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  };
+  return { state, login };
+});
+```
+
+### 29.4 接入登录逻辑
+
+src/views/login/index.vue
+
+```vue
+<script lang="ts" setup>
+const userStore = useUserStore();
+const router = useRouter();
+const handleLogin = () => {
+  loginFormRef.value?.validate(async (valid) => {
+    if (valid) {
+      loading.value = true;
+      try {
+        await userStore.login(loginState.loginForm);
+        router.push({ path: "/" });
+      } finally {
+        loading.value = false;
+      }
+    } else {
+      console.log("error submit");
+    }
+  });
+};
+</script>
+```
+
+### 29.5 设置代理
+
+vite.config.ts
+
+```ts
+
+export default defineConfig({
+  ...
+  server: {
+    proxy: {
+      '/dev-api': {
+        target: 'http://localhost:3000',
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/dev-api/, '/api')
+      }
+    }
+  }
+})
+```
+
+## 30.完成登录验证
+
+### 30.1 安装 nProgress 进度条
+
+```bash
+pnpm install --save nprogress
+# ts
+pnpm install -D @types/nprogress
+```
+
+### 30.2 添加路由验证
+
+**创建 permission.ts**
+
+> 添加路由导航钩子，进行登录验证
+
+src/permission.ts
+
+```ts
+import router from "@/router";
+import nProgress from "nprogress";
+import "nprogress/nprogress.css"; // progress bar style
+import { getToken } from "./utils/auth";
+nProgress.configure({ showSpinner: false });
+const whiteList = ["/login"]; // 白名单
+router.beforeEach((to) => {
+  nProgress.start();
+  const hasToken = getToken();
+  if (hasToken) {
+    // 有token代表已登录
+    if (to.path === "/login") {
+      nProgress.done();
+      return {
+        path: "/",
+        replace: true,
+      };
+    }
+    nProgress.done();
+    return true;
+  } else {
+    if (whiteList.includes(to.path)) {
+      nProgress.done();
+      return true;
+    }
+    nProgress.done();
+    return {
+      path: "/login",
+      query: {
+        redirect: to.path,
+        ...to.query,
+      },
+    };
+  }
+});
+router.afterEach(() => {
+  nProgress.done();
+});
+```
+
+> 在 main.ts 中引入 permission.ts
+
+### 30.3 登录后跳转逻辑修改
+
+src/hook/useRouteQuery.ts
+
+**创建 useRouteQuery hook**
+
+获取 url query 并得到 redirect 参数 redirect 参数或作为登录成功后跳转路径
+
+```ts
+import { Ref } from "vue";
+import { useRoute, LocationQueryRaw } from "vue-router";
+interface RouteQuery {
+  redirect: Ref<string>;
+  otherQuery: Ref<LocationQueryRaw | undefined>;
+}
+const useRouteQuery = (): RouteQuery => {
+  const route = useRoute();
+  const query = route.query;
+  const redirect = ref("");
+  const otherQuery = ref<LocationQueryRaw | undefined>(undefined);
+  const getOtherQuery = (query: LocationQueryRaw) => {
+    return Object.keys(query || {})
+      .filter((q) => q !== "redirect")
+      .reduce((obj, key) => {
+        obj[key] = query[key];
+        return obj;
+      }, {} as LocationQueryRaw);
+  };
+  otherQuery.value = getOtherQuery(query);
+  watchEffect(() => {
+    const query = route.query;
+    if (query) {
+      redirect.value = query.redirect as string;
+      otherQuery.value = getOtherQuery(query as LocationQueryRaw);
+    }
+  });
+  return {
+    redirect,
+    otherQuery,
+  };
+};
+export default useRouteQuery;
+```
+
+src/views/login/index.vue
+
+```vue
+<script lang="ts" setup>
+import useRouteQuery from "@/hook/useRouteQuery";
+const { redirect, otherQuery } = useRouteQuery();
+const handleLogin = () => {
+  loginFormRef.value?.validate(async (valid) => {
+    if (valid) {
+      loading.value = true;
+      try {
+        await userStore.login(loginState.loginForm);
+        router.push({ path: redirect.value || "/", query: otherQuery.value });
+      } finally {
+        loading.value = false;
+      }
+    } else {
+      console.log("error submit");
+    }
+  });
+};
+</script>
+```
