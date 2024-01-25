@@ -12,5 +12,9 @@
   "sizeChange": "11.element 组件 size 切换",
   "avatar": "12.添加用户头像 avatar 组件",
   "tagView": "13.标签导航基本功能",
-  "name": "14.给组件添加 name 属性"
+  "name": "14.给组件添加 name 属性",
+  "clickRight": "14.右键菜单",
+  "themeChange": "15.动态修改主题",
+  "navChange": "16.标签导航显示切换",
+  "sidebarLogo": "侧边栏 logo 显示控制"
 }

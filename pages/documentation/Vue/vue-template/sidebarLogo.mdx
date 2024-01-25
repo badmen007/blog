@@ -1,0 +1,204 @@
+## 25. 侧边栏 logo 显示控制
+
+### 25.1 store 中添加状态
+
+src/stores/settings.ts
+
+```ts
+import variables from "@/styles/variables.module.scss";
+import { defineStore } from "pinia";
+
+export const useSettingsStore = defineStore(
+  "settings",
+  () => {
+    // theme是用户选择的主题
+    // originalTheme是现在生效的主题, 刷新需要重新生成无需存放到sessionStorage中
+    const settings = reactive({
+      theme: variables.theme,
+      originalTheme: "",
+      tagsView: true,
+      sidebarLogo: true,
+    });
+    type ISettings = typeof settings;
+    type ValueOf<T> = T[keyof T];
+
+    // 修改设置
+    const changeSetting = ({
+      key,
+      value,
+    }: {
+      key: keyof ISettings;
+      value: ValueOf<ISettings>;
+    }) => {
+      if (key in settings) {
+        (settings[key] as ValueOf<ISettings>) = value;
+      }
+    };
+
+    return { settings, changeSetting };
+  },
+  {
+    persist: {
+      storage: window.sessionStorage,
+      paths: ["settings.theme", "settings.tagsView", "settings.sidebarLogo"],
+    },
+  }
+);
+```
+
+### 25.2 修改 Settings
+
+src/layout/components/Settings/index.vue
+
+```vue
+<template>
+  <div class="drawer-container">
+    ...
+    <div class="drawer-item">
+      <span>Sidebar Logo</span>
+      <el-switch v-model="showSidebarLogo" class="drawer-switch"></el-switch>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { useSettingsStore } from "@/stores/settings";
+
+const settingStore = useSettingsStore();
+
+const showSidebarLogo = computed({
+  get() {
+    return settingStore.settings.sidebarLogo;
+  },
+  set(val) {
+    settingStore.changeSetting({
+      key: "sidebarLogo",
+      value: val,
+    });
+  },
+});
+</script>
+```
+
+### 25.3 创建 logo 组件
+
+```vue
+<template>
+  <div class="sidebar-logo-container" :class="{ collapse: collapse }">
+    <transition name="sidebarLogoFade">
+      <!-- sidebar收起状态下 -->
+      <router-link
+        v-if="collapse"
+        key="collapse"
+        to="/"
+        class="sidebar-logo-link"
+      >
+        <img
+          v-if="logo"
+          :src="logo"
+          class="sidebar-logo"
+          alt="VueElementAdmin"
+        />
+        <h1 v-else class="sidebar-title">{{ title }}</h1>
+      </router-link>
+      <router-link v-else key="expand" to="/" class="sidebar-logo-link">
+        <img
+          v-if="logo"
+          :src="logo"
+          class="sidebar-logo"
+          alt="VueElementAdmin"
+        />
+        <h1 class="sidebar-title">{{ title }}</h1>
+      </router-link>
+    </transition>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import logo from "@/assets/vue.svg";
+defineProps({
+  collapse: {
+    type: Boolean,
+    required: true,
+  },
+});
+const title = "Vue Element Admin";
+</script>
+
+<style lang="scss" scoped>
+.sidebar-logo-container {
+  width: 100%;
+  height: 50px;
+  line-height: 50px;
+  text-align: center;
+  background: #2b2f3a;
+  overflow: hidden;
+  .sidebar-logo-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    .sidebar-logo {
+      width: 32px;
+      height: 32px;
+      vertical-align: middle;
+      margin-right: 12px;
+    }
+    .sidebar-title {
+      display: inline-block;
+      color: #fff;
+      margin: 0;
+      font-weight: 600;
+      line-height: 50px;
+      font-size: 14px;
+      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
+      vertical-align: middle;
+    }
+  }
+  &.collapse {
+    .sidebar-logo {
+      margin-right: 0;
+    }
+  }
+}
+.sidebarLogoFade-enter-active {
+  transition: opacity 1.5s;
+}
+.sidebarLogoFade-enter-from,
+.sidebarLogoFade-leave-to {
+  opacity: 0;
+}
+</style>
+```
+
+### 25.4 sidebar 里添加 logo
+
+```vue
+<template>
+  <logo v-if="showLogo" :collapse="isCollapse" />
+  <el-menu
+    class="sidebar-container-menu"
+    mode="vertical"
+    :default-active="activeMenu"
+    :background-color="scssVariables.menuBg"
+    :text-color="scssVariables.menuText"
+    :active-text-color="themeColor"
+    :collapse="sidebar.opened"
+    :collapse-transition="true"
+  >
+    <!-- 循环sidebar-item组件 -->
+    <sidebar-item
+      v-for="route in menuRoutes"
+      :key="route.path"
+      :item="route"
+      :base-path="route.path"
+    />
+  </el-menu>
+</template>
+<script lang="ts" setup>
+// ...
+// 是否显示logo
+const showLogo = computed(() => settingStore.settings.sidebarLogo);
+// 展开收起状态 稍后放store 当前是展开就让它收起
+const isCollapse = computed(() => store.sidebar.opened);
+</script>
+```
