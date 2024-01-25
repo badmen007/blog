@@ -51,9 +51,7 @@ export const useAppStore = defineStore(
 
 ## 13. 面包屑导航组件
 
-:::tip
-利用的是路由的 route.matched 属性
-:::
+利用的是路由的 `route.matched` 属性
 
 ### 13.1 route.matched
 
@@ -67,11 +65,9 @@ path-to-regexp 可以将动态路由路径/user/:id 转换成正则表达式。[
 pnpm install path-to-regexp
 ```
 
-:::tip
 这里我们要用它解决 面包屑导航是动态路由的情况下，点击面包屑导航 router.push 跳转时
-怎么把动态参数填充进去 拼接成正常路由 /user/:class/role/:id + {id: 2, class: 3} =>
-/user/3/role/2 然后正确跳转
-:::
+怎么把动态参数填充进去 拼接成正常路由 `/user/:class/role/:id + {id: 2, class: 3} =>
+/user/3/role/2` 然后正确跳转
 
 ### 13.3 创建 Breadcrumb 组件
 
