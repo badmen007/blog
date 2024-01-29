@@ -1,0 +1,246 @@
+# TypeScript for JavaScript Programmers
+
+TypeScript 与 JavaScript 的关系非同寻常。TypeScript 提供了 JavaScript 的所有功能，并在此基础上增加了一层： TypeScript 的类型系统。
+
+例如，JavaScript 提供了字符串和数字等语言基元，但它并不检查您是否始终如一地分配了这些基元。而 TypeScript 会。
+
+这意味着您现有的 JavaScript 代码也是 TypeScript 代码。TypeScript 的主要优势在于，它可以突出显示代码中的意外行为，从而降低出现 bug 的几率。
+
+本教程简要介绍了 TypeScript，重点是其类型系统。
+
+## 推理类型
+
+TypeScript 了解 JavaScript 语言，在很多情况下会为你生成类型。例如，在创建一个变量并将其赋值给一个特定值时，TypeScript 将使用该值作为其类型。
+
+```ts copy
+let helloWorld = "Hello World"; // 这里的helloWorld 就被推导成了string类型
+```
+
+通过了解 JavaScript 的工作原理，TypeScript 可以构建一个类型系统，该系统可接受 JavaScript 代码，但具有类型。这就提供了一个类型系统，而无需在代码中添加额外的字符来明确类型。在上面的示例中，TypeScript 就是这样知道 helloWorld 是一个字符串的。
+
+您可能在 Visual Studio Code 中编写过 JavaScript，并使用过编辑器自动完成功能。Visual Studio Code 在引擎盖下使用了 TypeScript，使 JavaScript 的使用更加方便。
+
+## 定义类型
+
+在 JavaScript 中可以使用多种设计模式。但是，有些设计模式很难自动推断类型（例如，使用动态编程的模式）。为了应对这些情况，TypeScript 支持 JavaScript 语言的扩展，可以让您告诉 TypeScript 应该使用哪些类型。
+
+例如，要创建一个推断类型为 name: string 和 id: number 的对象，可以这样写
+
+```ts copy
+const user = {
+  name: "hayes",
+  id: 0,
+};
+```
+
+您可以使用接口声明来明确描述该对象的类型：
+
+```ts copy
+interface User {
+  name: string;
+  id: number;
+}
+```
+
+然后，可以在变量声明之后使用在冒号后面跟上你为这个变量声明的类型，就拿这个例子来说，User 就是你描述的类型
+
+```ts copy
+const user: User = {
+  name: "hayes",
+  id: 0,
+};
+```
+
+如果您提供的对象与您所提供的接口不匹配，TypeScript 会向您发出警告：
+
+```ts {8,9} copy
+interface User {
+  name: string;
+  id: number;
+}
+
+const user: User = {
+  username: "Hayes",
+Type '{ username: string; id: number; }' is not assignable to type 'User'.
+  Object literal may only specify known properties, and 'username' does not exist in type 'User'.
+  id: 0,
+};
+```
+
+由于 JavaScript 支持类和面向对象编程，因此 TypeScript 也支持类和面向对象编程。您可以在类中使用接口声明：
+
+```ts copy
+interface User {
+  name: string;
+  id: number;
+}
+
+class UserAccount {
+  name: string;
+  id: number;
+
+  constructor(name: string, id: number) {
+    this.name = name;
+    this.id = id;
+  }
+}
+
+const user: User = new UserAccount("Murphy", 1);
+```
+
+您可以使用接口来注释函数的参数和返回值：
+
+```ts
+function deleteUser(user: User) {
+  // ...
+}
+
+function getAdminUser(): User {
+  //...
+}
+```
+
+JavaScript 中已经有了一小部分可用的原始类型：`boolean`,`bigint`,`null`, `number`,`string`,`symbol`,`unefined`.
+TypeScript 在此基础上又增加了一些类型，如 any（允许任何类型）、unknown（确保使用该类型的人声明了该类型是什么）、never（该类型不可能出现）和 void（返回未定义或无返回值的函数）。
+
+你会发现有两种语法来构建类型：`interface` 和 `type`。你应该首选`interface`. 需要特定的功能时再使用`type`
+
+## 联合类型(Composing Types)
+
+使用 TypeScript，您可以通过组合简单类型来创建复杂类型。有两种常用的方法：联合和泛型。
+
+### 联合(Unions)
+
+通过联合，您可以声明一种类型可以是多种类型中的一种。例如，您可以将布尔类型描述为 `true` 或 `false`：
+
+```ts copy
+type MyBool = true | false;
+```
+
+注：如果将鼠标悬停在上面的 MyBool 上，你会发现它被归类为布尔型。这是结构类型系统的一个属性。下面将详细介绍。
+
+联合类型的一个常见用例是描述允许值为字符串或数字字面量的集合：
+
+```ts copy
+type WindowStates = "open" | "closed" | "minimized";
+type LockStates = "locked" | "unlocked";
+type PositiveOddNumbersUnderTen = 1 | 3 | 5 | 7 | 9;
+```
+
+联合类型还提供了一种处理不同类型的方法。例如，您可能有一个接收数组或字符串的函数：
+
+```ts
+function getLength(obj: string | string[]) {
+  return obj.length;
+}
+```
+
+要了解变量的类型，请使用 `typeof`：
+
+| 类型      | 语句                             |
+| --------- | -------------------------------- |
+| string    | typeof s === "string"            |
+| number    | typeof n === "number"            |
+| boolean   | typeof b === "boolean"           |
+| undefined | typeof undefined === "undefined" |
+| function  | typeof f === "function"          |
+| array     | Array.isArray(a)                 |
+
+例如，您可以根据传递的是字符串还是数组，让函数返回不同的值：
+
+```ts {4}
+function wrapInArray(obj: string | string[]) {
+  if (typeof obj === "string") {
+    return [obj];
+        (parameter) obj: string
+  }
+  return obj;
+}
+```
+
+### 泛型(Generics)
+
+泛型为类型提供变量。一个常见的例子就是数组。没有泛型的数组可以包含任何内容。使用了泛型的数组可以描述数组所包含的值。
+
+```ts
+type StringArray = Array<string>;
+type NumberArray = Array<number>;
+type ObjectWithNameArray = Array<{ name: string }>;
+```
+
+您可以自己声明使用泛型的类型：
+
+```ts {15} copy
+interface Backpack<Type> {
+  add: (obj: Type) => void;
+  get: () => Type;
+}
+
+// This line is a shortcut to tell TypeScript there is a
+// constant called `backpack`, and to not worry about where it came from.
+declare const backpack: Backpack<string>;
+
+// object is a string, because we declared it above as the variable part of Backpack.
+const object = backpack.get();
+
+// Since the backpack variable is a string, you can't pass a number to the add function.
+backpack.add(23);
+Argument of type 'number' is not assignable to parameter of type 'string'.
+```
+
+## 结构类型系统(Structural Type System)
+
+TypeScript 的核心原则之一是类型检查侧重于值的形状。这有时被称为 "鸭子类型 "或 "结构类型"。
+
+在结构类型系统中，如果两个对象具有相同的形状，它们就被视为具有相同的类型。
+
+```ts
+interface Point {
+  x: number;
+  y: number;
+}
+
+function logPoint(p: Point) {
+  console.log(`${p.x}, ${p.y}`);
+}
+
+// logs "12, 26"
+const point = { x: 12, y: 26 };
+logPoint(point);
+```
+
+point 变量从未声明为 Point 类型。然而，TypeScript 在类型检查中将 point 的形状与 Point 的形状进行了比较。它们的形状相同，因此代码通过。
+
+形状匹配只需要对象字段的子集匹配。
+
+```ts {9,10} copy
+const point3 = { x: 12, y: 26, z: 89 };
+logPoint(point3); // logs "12, 26"
+
+const rect = { x: 33, y: 3, width: 30, height: 80 };
+logPoint(rect); // logs "33, 3"
+
+const color = { hex: "#187ABF" };
+logPoint(color);
+Argument of type '{ hex: string; }' is not assignable to parameter of type 'Point'.
+  Type '{ hex: string; }' is missing the following properties from type 'Point': x, y
+```
+
+类和对象在符合形状的方式上没有区别：
+
+```ts
+class VirtualPoint {
+  x: number;
+  y: number;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+const newVPoint = new VirtualPoint(13, 56);
+logPoint(newVPoint); // logs "13, 56"
+```
+
+如果对象或类具有所有必需的属性，TypeScript 就会说它们匹配，而不管实现细节如何。

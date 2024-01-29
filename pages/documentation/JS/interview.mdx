@@ -56,3 +56,48 @@ class Query {
   }
 }
 ```
+
+## 2. for...in for...of
+
+```js copy
+// for..in  for...of 遍历属性对象
+const obj = { name: "xz", age: 20 };
+Object.prototype.b = "zzz";
+for (let key in obj) {
+  // 遍历可以枚举的属性包括原型对象上的属性 可以用hasOwnProperty来进行过滤
+  if (obj.hasOwnProperty(key)) {
+    console.log(key);
+  }
+}
+
+// for.. of
+// 1. 普通的对象默认是没有iterator的
+const obj1 = { name: "aa", age: 10 };
+for (let item of obj1) {
+  console.log(item);
+}
+
+// 2.数组是直接可以用for..of遍历的
+const arr = [1, 2, 4];
+for (let item of arr) {
+  console.log(item);
+}
+
+// 3.map可以用for..of遍历
+const map = new Map();
+map.set(1, 2);
+
+for (const [key, value] of map.entries()) {
+  console.log(key, "--", value);
+}
+
+// 4.set可以用for..of遍历
+const arrList = new Set();
+arrList.add(2);
+arrList.add(3);
+arrList.add(4);
+// 但是key和value的值都是一样的
+for (const [key, value] of arrList.entries()) {
+  console.log(key, "--", value);
+}
+```

@@ -1,0 +1,353 @@
+# The Basics
+
+JavaScript 中的每个值都有一系列行为，您可以通过运行不同的操作来观察这些行为。这听起来很抽象，但举个简单的例子，我们可以对名为 message 的变量执行一些操作。
+
+```ts
+// Accessing the property 'toLowerCase'
+// on 'message' and then calling it
+message.toLowerCase();
+// Calling 'message'
+message();
+```
+
+如果我们细分一下，第一行可运行代码访问了一个名为 toLowerCase 的属性，然后调用了它。第二行试图直接调用 message。
+
+但是，假设我们不知道 message 的值--这也是很常见的情况--我们就无法确定运行这些代码会得到什么结果。每个操作的行为完全取决于我们最初拥有的值。
+
+- `message`是否可调用？
+- 它是否有一个名为 `toLowerCase` 的属性？
+- 如果有，`toLowerCase` 是否可调用？
+- 如果这两个值都是可调用的，那么它们会返回什么？
+
+这些问题的答案通常都是我们在编写 JavaScript 时记在脑子里的，我们只能希望自己把所有细节都写对了。
+
+假设 message 的定义如下。
+
+```ts
+const message = "Hello World!";
+```
+
+也许你能猜到，如果我们尝试运行 message.toLowerCase()，我们将得到同样的小写字符串。
+
+那么第二行代码呢？如果你熟悉 JavaScript，就会知道这会导致异常失败：
+
+```ts
+TypeError: message is not a function
+```
+
+如果我们能避免这样的错误就好了。
+
+当我们运行代码时，JavaScript 运行时选择要做的事情的方式是找出值的类型--它具有什么样的行为和能力。这就是 TypeError 所暗示的部分原因--它表示字符串 "Hello World!"不能作为函数调用。
+
+对于某些值，如字符串和数字等，我们可以在运行时使用 `typeof` 操作符来识别它们的类型。但对于其他值（如函数），则没有相应的运行时机制来识别它们的类型。例如，请看下面这个函数
+
+```ts
+function fn(x) {
+  return x.flip();
+}
+```
+
+通过阅读代码，我们可以发现只有在给定一个具有可调用`flip`属性的对象时，该函数才会起作用，但 JavaScript 并没有以一种我们可以在代码运行时检查的方式来显示这一信息。在纯 JavaScript 中，要想知道 fn 对某个特定值的作用，唯一的方法就是调用它，看看会发生什么。这种行为使得我们很难在代码运行前预测代码会做什么，这意味着我们更难在编写代码时知道代码会做什么。
+
+从这个角度来看，类型就是描述哪些值可以传递给 fn，哪些会崩溃的概念。JavaScript 只提供真正的动态类型--运行代码看看会发生什么。
+
+另一种方法是使用静态类型系统，在代码运行之前预测代码的预期功能
+
+## Static type-checking
+
+回想一下我们之前尝试将字符串作为函数调用时出现的 `TypeError`。大多数人都不喜欢在运行代码时出现任何类型的错误--这些错误被认为是 bug！当我们编写新代码时，我们会尽力避免引入新的错误。
+
+如果我们只添加了一点代码，保存文件，重新运行代码，并立即发现错误，那么我们可能很快就能隔离问题；但情况并非总是如此。我们可能没有对功能进行足够彻底的测试，因此可能从未真正遇到过可能会抛出的错误！或者，如果我们足够幸运地发现了错误，我们最终可能会进行大规模的重构，并添加大量不同的代码，而这些代码都是我们不得不挖掘的。
+
+理想的情况是，我们能有一个工具，帮助我们在代码运行之前发现这些错误。这就是 TypeScript 这样的静态类型检查工具的作用。静态类型系统描述了我们运行程序时值的形状和行为。`TypeScript` 这样的类型检查程序会利用这些信息，告诉我们什么时候可能会出错。
+
+```ts
+const message = "hello!";
+
+message();
+// This expression is not callable.
+//   Type 'String' has no call signatures
+```
+
+使用 TypeScript 运行最后一个示例会在运行代码之前给出错误信息。
+
+## Non-exception Failures
+
+到目前为止，我们一直在讨论诸如运行时错误之类的问题--JavaScript 运行时会告诉我们，它认为某些东西是不合理的。之所以会出现这些情况，是因为 ECMAScript 规范明确说明了语言在遇到意外情况时应该如何处理。
+
+例如，规范规定，试图调用不可调用的内容时，应抛出错误。也许这听起来像是 "显而易见的行为"，但你可以想象，访问一个对象上不存在的属性也会出错。然而，JavaScript 却给出了不同的行为，并返回 undefined：
+
+```ts
+const user = {
+  name: "Daniel",
+  age: 26,
+};
+user.location; // returns undefined
+```
+
+最终，静态类型系统必须决定哪些代码在其系统中应被标记为错误，即使是 "有效 "的 JavaScript，也不会立即抛出错误。在 TypeScript 中，下面的代码会产生`location`未定义的错误：
+
+```ts
+const user = {
+  name: "Daniel",
+  age: 26,
+};
+
+user.location;
+// Property 'location' does not exist on type '{ name: string; age: number; }'.
+```
+
+虽然有时这意味着你需要权衡你能表达的内容，但我们的目的是在程序中捕获合法的 bug。而 TypeScript 可以捕获很多合法的 bug。
+
+例如：错别字、
+
+```ts
+const announcement = "Hello World!";
+
+// How quickly can you spot the typos?
+announcement.toLocaleLowercase();
+announcement.toLocalLowerCase();
+
+// We probably meant to write this...
+announcement.toLocaleLowerCase();
+```
+
+未调用的功能、
+
+```ts
+function flipCoin() {
+  // Meant to be Math.random()
+  return Math.random < 0.5;
+  // Operator '<' cannot be applied to types '() => number' and 'number'.
+}
+```
+
+或基本逻辑错误。
+
+```ts
+const value = Math.random() < 0.5 ? "a" : "b";
+if (value !== "a") {
+  // ...
+} else if (value === "b") {
+This comparison appears to be unintentional because the types '"a"' and '"b"' have no overlap.
+  // Oops, unreachable
+}
+```
+
+## Types for Tooling
+
+当我们在代码中犯错时，TypeScript 可以捕捉错误。这固然很好，但 TypeScript 还能从一开始就防止我们犯错。
+
+类型检查器可以检查我们是否访问了变量和其他属性的正确属性。一旦掌握了这些信息，它还会开始建议你使用哪些属性。
+
+这意味着 TypeScript 也可以用于编辑代码，核心类型检查器可以在你在编辑器中键入代码时提供错误信息和代码补全。这就是人们在谈论 TypeScript 工具时经常提到的部分内容。
+
+TypeScript 非常重视工具性，而不仅仅是输入时的补全和错误。支持 TypeScript 的编辑器可以提供 "快速修复 "功能，自动修复错误；提供重构功能，轻松重新组织代码；提供有用的导航功能，跳转到变量的定义，或查找给定变量的所有引用。所有这些都建立在类型检查器之上，并且完全跨平台，因此您最喜欢的编辑器很可能支持 TypeScript。
+
+## `tsc`, the TypeScript compiler
+
+我们一直在讨论类型检查，但还没有使用过类型检查器。让我们来认识一下我们的新朋友 tsc，TypeScript 编译器。首先，我们需要通过 npm 获取它。
+
+```bash
+npm install -g typescript
+```
+
+<div
+  style={{
+    padding: "1rem",
+    backgroundColor: "#f1f1fe",
+  }}
+>
+  这将全局安装 TypeScript 编译器 tsc。如果你想从本地的 node_modules 包运行
+  tsc，可以使用 npx 或类似工具。
+</div>
+
+现在，让我们移动到一个空文件夹，尝试编写第一个 TypeScript 程序：hello.ts：
+
+```ts
+// Greets the world.
+console.log("Hello world!");
+```
+
+请注意，这里没有任何修饰；这个 "hello world "程序看起来与你用 JavaScript 编写的 "hello world "程序完全一样。现在，让我们运行 typescript 软件包为我们安装的 tsc 命令，对程序进行类型检查。
+
+```bash
+tsc hello.ts
+```
+
+我们运行了 tsc，但什么也没发生！好吧，没有类型错误，所以我们的控制台没有任何输出，因为没有什么可报告的。
+
+但再看看，我们得到了一些文件输出。如果我们查看当前目录，会在 hello.ts 旁边看到一个 hello.js 文件。这是 hello.ts 文件经过 tsc 编译或转换成纯 JavaScript 文件后的输出。如果我们检查其内容，就会看到 TypeScript 在处理 .ts 文件后吐出的内容：
+
+```ts
+// Greets the world.
+console.log("Hello world!");
+```
+
+在这种情况下，TypeScript 几乎不需要进行转换，所以看起来与我们写的完全一样。编译器会尽量生成简洁可读的代码，看起来就像人写的一样。虽然这并不总是那么容易，但 TypeScript 的缩进是一致的，当我们的代码跨越不同的代码行时，它会注意到，并尽量保留注释。
+
+如果我们确实引入了类型检查错误怎么办？让我们重写 `hello.ts`：
+
+```ts
+// This is an industrial-grade general-purpose greeter function:
+function greet(person, date) {
+  console.log(`Hello ${person}, today is ${date}!`);
+}
+
+greet("Brendan");
+```
+
+如果我们再次运行 `tsc hello.ts`，会发现命令行出现错误！
+
+```
+Expected 2 arguments, but got 1.
+```
+
+TypeScript 告诉我们，我们忘了给 greet 函数传递一个参数，这也是理所当然的。到目前为止，我们只编写了标准的 JavaScript，但类型检查仍能发现我们代码中的问题。感谢 TypeScript！
+
+## Emitting with Errors
+
+在上一个示例中，有一点你可能没有注意到，那就是我们的 hello.js 文件又变了。如果我们打开该文件，就会发现其内容与输入文件基本相同。鉴于 tsc 报告了我们代码的错误，这可能有点令人惊讶，但这是基于 TypeScript 的核心价值之一：很多时候，你比 TypeScript 更了解自己。
+
+重申一下之前的观点，类型检查代码会限制你可以运行的程序类型，因此类型检查程序会权衡哪些是可以接受的。大多数情况下这没什么问题，但在有些情况下，类型检查会起到阻碍作用。例如，想象一下你将 JavaScript 代码迁移到 TypeScript，并引入了类型检查错误。最终，你会为类型检查程序清理出错误，但最初的 JavaScript 代码已经可以正常工作了！为什么把它转换到 TypeScript 就不能运行了呢？
+
+这样，TypeScript 就不会妨碍你了。当然，随着时间的推移，你可能会希望对错误进行更多的防御，让 TypeScript 的行为更严格一些。在这种情况下，你可以使用 noEmitOnError 编译器选项。试试修改你的 hello.ts 文件，然后使用该标记运行 tsc：
+
+```bash
+tsc --noEmitOnError hello.ts
+```
+
+你会发现，hello.js 从未更新过。
+
+## Explicit Types
+
+到目前为止，我们还没有告诉 TypeScript `person`或`date`是什么。让我们编辑代码，告诉 `TypeScript` `person` 是一个字符串，而 `date` 应该是一个 `Date` 对象。我们还将对 `date` 使用 `toDateString()` 方法。
+
+```ts
+function greet(person: string, date: Date) {
+  console.log(`Hello ${person}, today is ${date.toDateString()}!`);
+}
+```
+
+我们的做法是在 person 和 date 上添加类型注解，以描述 greet 可以调用哪些类型的值。你可以将签名理解为 "greet 接收字符串类型的 person 和日期类型的 date"。
+
+有了这个，TypeScript 可以告诉我们其他可能错误调用 greet 的情况。例如...
+
+```ts
+function greet(person: string, date: Date) {
+  console.log(`Hello ${person}, today is ${date.toDateString()}!`);
+}
+
+greet("Maddison", Date());
+// Argument of type 'string' is not assignable to parameter of type 'Date'.
+```
+
+为什么？TypeScript 报告第二个参数出错了，为什么呢？
+
+也许令人惊讶的是，在 JavaScript 中调用 Date() 会返回一个字符串。另一方面，用 new Date() 构造 Date 实际上得到了我们所期望的结果。
+
+无论如何，我们可以很快解决这个错误：
+
+```ts
+function greet(person: string, date: Date) {
+  console.log(`Hello ${person}, today is ${date.toDateString()}!`);
+}
+
+greet("Maddison", new Date());
+```
+
+请记住，我们并不总是需要编写显式类型注解。在许多情况下，即使我们省略了类型注解，TypeScript 也能为我们推断（或 "找出"）类型。
+
+```ts
+let msg = "hello there!";
+
+// let msg: string
+```
+
+尽管我们没有告诉 TypeScript msg 的类型是字符串，但它还是能够识别出来。这是一个特性，当类型系统最终推断出相同类型时，最好不要添加注释。
+
+## Erased Types
+
+让我们看看用 tsc 编译上述函数 greet 输出 JavaScript 时会发生什么：
+
+```js
+"use strict";
+function greet(person, date) {
+  console.log(
+    "Hello ".concat(person, ", today is ").concat(date.toDateString(), "!")
+  );
+}
+greet("Maddison", new Date());
+```
+
+请注意这里的两点：
+
+我们的`person`和`date`参数不再有类型注释。
+我们的 "模板字符串"，即使用了反斜线（` 字符）的字符串，被转换为使用连接符的纯字符串。
+
+关于第二点，我们稍后再谈，现在让我们把重点放在第一点上。类型注解不是 JavaScript（或 ECMAScript，迂腐一点）的一部分，所以确实没有任何浏览器或其他运行时可以不加修改地运行 TypeScript。这就是为什么 TypeScript 首先需要一个编译器--它需要某种方法来删除或转换任何特定于 TypeScript 的代码，以便你可以运行它。大多数特定于 TypeScript 的代码都会被删除，同样，在这里我们的类型注解也被完全删除了。
+
+<div
+  style={{
+    padding: "1rem",
+    backgroundColor: "#f1f1fe",
+  }}
+>
+  请记住 类型注解永远不会改变程序的运行时行为。
+</div>
+
+## Downleveling
+
+与上文不同的是，我们的模板字符串是从
+
+```js
+`Hello ${person}, today is ${date.toDateString()}!`;
+```
+
+to
+
+```js
+"Hello ".concat(person, ", today is ").concat(date.toDateString(), "!");
+```
+
+为什么会这样？
+
+模板字符串是 ECMAScript 2015（又称 ECMAScript 6、ES2015、ES6 等，不要问）版本中的一项功能。TypeScript 能够将代码从较新版本的 ECMAScript 重写为较旧版本的 ECMAScript，如 ECMAScript 3 或 ECMAScript 5（又称 ES3 和 ES5）。
+
+默认情况下，TypeScript 以 ES3 为目标，这是 ECMAScript 的一个非常老的版本。我们可以使用 target 选项来选择更新版的 ECMAScript。
+
+```ts
+function greet(person, date) {
+  console.log(`Hello ${person}, today is ${date.toDateString()}!`);
+}
+greet("Maddison", new Date());
+```
+
+<div
+  style={{
+    padding: "1rem",
+    backgroundColor: "#f1f1fe",
+  }}
+>
+  虽然默认目标是 ES3，但目前绝大多数浏览器都支持
+  ES2015。因此，大多数开发人员可以放心地指定 ES2015
+  或更高版本作为目标，除非与某些古老浏览器的兼容性非常重要。
+</div>
+
+## Strictness
+
+不同的用户使用 TypeScript 时，对类型检查器的要求也不尽相同。有些人在寻找一种更宽松的选择性体验，这种体验可以只帮助验证程序的某些部分，同时还能拥有像样的工具。这是 TypeScript 的默认体验，其中类型是可选的，推理采用最宽松的类型，并且不检查潜在的`null`/`undefined`。就像 tsc 在面对错误时发出信号一样，这些默认设置也是为了不妨碍你的工作。如果你正在迁移现有的 JavaScript，这可能是可取的第一步。
+
+与此相反，很多用户更喜欢 TypeScript 能验证多少就验证多少，这就是为什么该语言还提供了严格性设置。这些严格性设置将静态类型检查从一个开关（要么检查你的代码，要么不检查）变成了一个拨盘。将刻度盘调得越大，TypeScript 就会为你检查得越多。这可能需要一些额外的工作，但一般来说，从长远来看是值得的，而且可以实现更彻底的检查和更精确的工具。在可能的情况下，新代码库应始终打开这些严格性检查。
+
+TypeScript 有多个类型检查严格性标志可以打开或关闭，除非另有说明，否则我们编写的所有示例都将启用所有这些标志。CLI 中的严格标志，或 tsconfig.json 中的 "strict"：true 可以同时开启所有这些标志，但我们也可以单独退出。你应该知道的两个最大的选项是 noImplicitAny 和 strictNullChecks。
+
+## noImplicitAny
+
+回想一下，在某些地方，TypeScript 不会为我们推断类型，而是使用最宽松的类型：any。这并不是最糟糕的事情--毕竟，回退到 any 只是普通的 JavaScript 体验。
+
+然而，使用 any 通常会违背使用 TypeScript 的初衷。程序的类型化程度越高，验证和工具就越多，这意味着你在编写代码时遇到的 bug 就越少。打开 noImplicitAny 标志将对类型被隐式推断为 any 的变量发出错误信息。
+
+## strictNullChecks
+
+默认情况下，像 `null` 和 `undefined` 这样的值可以分配给任何其他类型。这可能会让编写代码变得更容易，但忘记处理 `null` 和 `undefined` 会导致世界上无数的错误，有人认为这是一个价值十亿美元的错误！strictNullChecks 标志使 `null` 和 `undefined` 的处理更加明确，让我们不必担心是否忘记处理 `null` 和 `undefined`。

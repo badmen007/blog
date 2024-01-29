@@ -33,12 +33,6 @@ const config: DocsThemeConfig = {
       return <>{title}</>;
     },
   },
-  feedback: {
-    content: null,
-  },
-  editLink: {
-    text: null,
-  },
   gitTimestamp: (date) => (
     <div>Last updated at {new Date(date.timestamp).toLocaleDateString()}</div>
   ),
