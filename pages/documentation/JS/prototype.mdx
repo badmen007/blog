@@ -1,0 +1,36 @@
+## 什么是原型？
+
+- 当你声明一个对象，比如说像下面这样，去浏览器打印这个对象，它会有一个 `prototype` 属性
+  那么这些属性是从什么地方来的呢？
+  `javascript` 中每一个对象都有一个内置的属性,称为原型(`prototype`)
+- 原型也是一个对象
+  所以原型也有自己的原型，这就是所谓的原型链，当找到一个自身原型为空的原型时，原型链就结束了.
+  对象中指向其原型的属性不叫原型，所有的浏览器都用`__proto__` 或者 用 `Object.getOwnProperty()`
+
+- 当你尝试去访问对象的某个属性的时候：如果在对象本身找不到该属性，就会在原型上找该属性。如果仍然找不到该属性
+  就回去找原型的原型，依次类推，直到找到该属性或者是链结束， 找不到就返回 undefined
+  拿下面的这个例子来说： `city` -> `__proto__` -> `Object.prototype`
+
+```js
+const myObject = {
+  city: "Madrid",
+  greet() {
+    console.log(`Greetings from ${this.city}`);
+  },
+};
+
+myObject.greet(); // Greetings from Madrid
+console.log(myObject);
+```
+
+## 设置 prototype
+
+- 1. Object.create()
+- 2. Object.assign(Person.prototype, myObject)
+- 3. name 属性是每一个对象独有的，虽然它们的原型可能一样
+
+```js
+function Person(name) {
+  this.name = name;
+}
+```

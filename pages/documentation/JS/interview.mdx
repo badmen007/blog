@@ -101,3 +101,29 @@ for (const [key, value] of arrList.entries()) {
   console.log(key, "--", value);
 }
 ```
+
+## 获取页面中哪个元素是最多的
+
+- [Array.from](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from)
+
+```js
+//可以获取页面中哪个标签名用的最多
+const elements = [...document.querySelectorAll("*")].map(
+  (item) => item.tagName
+);
+
+const map = new Map();
+for (const item of elements) {
+  if (map.has(item)) {
+    map.set(item, map.get(item) + 1);
+  } else {
+    map.set(item, 1);
+  }
+}
+
+const sortedArr = Array.from(map).sort((a, b) => a[1] - b[1]);
+console.log(sortedArr[sortedArr.length - 1][0]);
+```
+
+## 事件循环
+
