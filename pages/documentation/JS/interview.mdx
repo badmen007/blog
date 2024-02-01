@@ -125,5 +125,52 @@ const sortedArr = Array.from(map).sort((a, b) => a[1] - b[1]);
 console.log(sortedArr[sortedArr.length - 1][0]);
 ```
 
-## 事件循环
+## 拷贝两个有序数组
 
+```js
+function merge(arr1, arr2) {
+  let index = 0;
+  let p1 = 0;
+  let p2 = 0;
+  const help = [];
+
+  while (p1 < arr1.length && p2 < arr2.length) {
+    help[index++] = arr1[p1] < arr2[p2] ? arr1[p1++] : arr2[p2++];
+  }
+
+  while (p1 < arr1.length) {
+    help[index++] = arr1[p1++];
+  }
+
+  while (p2 < arr2.length) {
+    help[index++] = arr2[p2++];
+  }
+  return help;
+}
+```
+
+### 一道简单的流程题
+
+```js
+console.log("1");
+
+new Promise((resolve, reject) => {
+  console.log(2);
+  resolve(3);
+  console.log(4);
+  reject(5);
+})
+  .then((val) => {
+    console.log(val);
+  })
+  .catch((e) => console.log(e));
+
+setTimeout(() => {
+  console.log(6);
+});
+console.log(7);
+```
+
+### 
+
+## 事件循环
