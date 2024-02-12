@@ -1,0 +1,76 @@
+import Link from "next/link";
+import { Callout } from "nextra-theme-docs";
+
+# Welcome to my learning space
+
+Here's what I've learned throughout web development, including `html`, `javascript`, `css`, `vue`, `react`
+
+## What Do You Want To Learn?
+
+The following are the current modules available on the website.
+
+<Callout type="warning">
+  Some of the documentation is incomplete and is being updated daily.
+</Callout>
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+  <Link
+    href="/documentation/CSS/interview"
+    className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+  >
+    <h2 className="font-bold mb-2 text-2xl">Learn HTML5</h2>
+    <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
+      Learn the markup language of the web, how to structure elements on your
+      website or web app, and how to use proper semantic tags to improve your
+      search engine rankings.
+    </div>
+  </Link>
+  <Link
+  href="/web-development/css/css"
+  className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+>
+  <h2 className="font-bold mb-2 text-2xl">Learn CSS3</h2>
+  <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
+    Learn how to make your HTML skeleton appealing by applying beautiful styles
+    and animations with CSS3.
+  </div>
+</Link>
+
+{" "}
+<Link
+  href="/web-development/javascript/javascript"
+  className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+>
+  <h2 className="font-bold mb-2 text-2xl">Learn JavaScript</h2>
+  <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
+    Learn the scripting language of the web, how to add interactivity to your
+    website, handle form submissions, communicate with your server or database.
+  </div>
+</Link>
+
+{" "}
+<Link
+  href="/web-development/nodejs/nodejs"
+  className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+>
+  <h2 className="font-bold mb-2 text-2xl">Learn Node.js</h2>
+  <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
+    Node.js is a back-end JavaScript runtime environment, runs on the V8
+    JavaScript Engine, and executes JavaScript code outside a web browser.
+  </div>
+</Link>
+
+{" "}
+<Link
+  href="/web-development/react/react"
+  className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+>
+  <h2 className="font-bold mb-2 text-2xl">Learn ReactJs</h2>
+  <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
+    React is a free and open-source front-end JavaScript library for building
+    user interfaces based on components.{" "}
+  </div>
+</Link>
+
+{" "}
+</div>

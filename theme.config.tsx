@@ -19,7 +19,9 @@ const config: DocsThemeConfig = {
   chat: {
     link: "",
   },
-  footer: {},
+  footer: {
+    text: "Copyright Viva La Vida 2023",
+  },
   sidebar: {
     titleComponent: ({ title, type }) => {
       if (type === "separator") {
