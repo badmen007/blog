@@ -1,76 +1,78 @@
 import Link from "next/link";
 import { Callout } from "nextra-theme-docs";
 
-# Welcome to my learning space
+# 欢迎来到我的学习空间
 
-Here's what I've learned throughout web development, including `html`, `javascript`, `css`, `vue`, `react`
+以下是我在开发的过程中学到的东西, 包括 `html`, `javascript`, `css`, `vue`, `react`
 
-## What Do You Want To Learn?
+## 你想了解什么?
 
-The following are the current modules available on the website.
+下面是记录的文档的模块：
 
-<Callout type="warning">
-  Some of the documentation is incomplete and is being updated daily.
-</Callout>
+<Callout type="warning">日常更新文档</Callout>
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
   <Link
-    href="/documentation/CSS/interview"
+    href="/documentation/Html/learn"
     className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
   >
     <h2 className="font-bold mb-2 text-2xl">Learn HTML5</h2>
     <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
-      Learn the markup language of the web, how to structure elements on your
-      website or web app, and how to use proper semantic tags to improve your
-      search engine rankings.
+      学习网络标记语言，了解如何构建网站或网络应用程序中的元素结构。
+      使用正确的语义化标签，
     </div>
   </Link>
   <Link
-  href="/web-development/css/css"
-  className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
->
+    href="/documentation/CSS/interview"
+    className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+  >
   <h2 className="font-bold mb-2 text-2xl">Learn CSS3</h2>
   <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
-    Learn how to make your HTML skeleton appealing by applying beautiful styles
-    and animations with CSS3.
+    学习如何使用CSS3应用漂亮的样式和动画，使得HTML更加吸引人。
   </div>
-</Link>
+  </Link>
 
-{" "}
 <Link
-  href="/web-development/javascript/javascript"
+  href="/documentation/JS/interview"
   className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
 >
   <h2 className="font-bold mb-2 text-2xl">Learn JavaScript</h2>
   <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
-    Learn the scripting language of the web, how to add interactivity to your
-    website, handle form submissions, communicate with your server or database.
+    学习Javascript，可以给网站添加互动性、点击按钮、处理表单等。
   </div>
 </Link>
 
-{" "}
 <Link
-  href="/web-development/nodejs/nodejs"
+  href="/documentation/Node/node"
   className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
 >
-  <h2 className="font-bold mb-2 text-2xl">Learn Node.js</h2>
+  <h2 className="font-bold mb-2 text-2xl">Learn NodeJs</h2>
   <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
-    Node.js is a back-end JavaScript runtime environment, runs on the V8
-    JavaScript Engine, and executes JavaScript code outside a web browser.
+    Node.js 是一种后端 JavaScript 运行环境，运行于 V8 JavaScript
+    引擎上运行，可在网络浏览器外执行 JavaScript 代码。
   </div>
 </Link>
 
-{" "}
 <Link
-  href="/web-development/react/react"
+  href="/documentation/React/react"
   className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
 >
   <h2 className="font-bold mb-2 text-2xl">Learn ReactJs</h2>
   <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
-    React is a free and open-source front-end JavaScript library for building
-    user interfaces based on components.{" "}
+    React 是一个免费开源的前端 JavaScript 库，用于构建基于组件的用户界面。
+    用户界面的前端 JavaScript 库。
   </div>
 </Link>
 
-{" "}
+<Link
+  href="/documentation/Vue/Interview"
+  className="border border-[#222222] rounded-lg p-4 hover:opacity-75 hover:scale-105 transition-all duration-150"
+>
+  <h2 className="font-bold mb-2 text-2xl">Learn Vue</h2>
+  <div className="opacity-75 text-sm" style={{ lineHeight: 1.8 }}>
+    Vue 是一个免费开源的前端 JavaScript 库，用于构建基于组件的用户界面。
+    用户界面的前端 JavaScript 库。
+  </div>
+</Link>
+
 </div>
