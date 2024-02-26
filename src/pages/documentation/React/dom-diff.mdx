@@ -1,0 +1,189 @@
+# DOM-Diff
+
+## 单节点
+
+- `key` 相同，类型相同，复用老的 `fiber`
+
+```js {6-12}
+function reconcileSingleElement(returnFiber, currentFirstChild, element) {
+  const key = element.key;
+  let child = currentFirstChild;
+  while (child !== null) {
+    if (child.key == key) {
+      if (child.type == element.type) {
+        // 因为是单个节点 所以删除的是兄弟节点
+        // 就是说原来可能有多个，现在就一个
+        deleteRemainingChildren(returnFiber, child.sibling);
+        const existing = useFiber(child, element.props);
+        existing.return = returnFiber;
+        return existing;
+      } else {
+        // key相同 但是类型不同 自己和兄弟都删除
+        deleteRemainingChildren(returnFiber, child);
+      }
+    } else {
+      deleteChild(returnFiber, child);
+    }
+    child = child.sibling;
+  }
+  ...
+```
+
+- `key` 不同，删除老的 `fiber`，根据新的虚拟 DOM 创建新的 `fiber`
+
+```js {15,19-22}
+function reconcileSingleElement(returnFiber, currentFirstChild, element) {
+  const key = element.key;
+  let child = currentFirstChild;
+  while (child !== null) {
+    if (child.key == key) {
+      if (child.type == element.type) {
+        // 因为是单个节点 所以删除的是兄弟节点
+        // 就是说原来可能有多个，现在就一个
+        ...
+      } else {
+        // key相同 但是类型不同 自己和兄弟都删除
+        deleteRemainingChildren(returnFiber, child);
+      }
+    } else {
+      deleteChild(returnFiber, child);
+    }
+    child = child.sibling;
+  }
+  // 没有老的节点
+  const created = createFiberFromElement(element);
+  created.return = returnFiber;
+  return created;
+}
+```
+
+## 多节点的 DOM-Diff
+
+- 原来的节点不变，但是有新增的元素
+
+```js {11-24}
+function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
+  let resultingFirstChild = null;
+  let previousNewFiber = null;
+  let newIndex = 0;
+  // 第一个老fiber
+  let oldFiber = currentFirstChild;
+  let nextOldFiber = null;
+  let lastPlacedIndex = 0;
+
+  ....
+
+  // 老的fiber没了 新的还有 创建fiber然后插入
+  if (oldFiber == null) {
+    for (; newIndex < newChildren.length; newIndex++) {
+      const newFiber = createChild(returnFiber, newChildren[newIndex]);
+      if (newFiber == null) continue;
+      lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIndex);
+      if (previousNewFiber == null) {
+        resultingFirstChild = newFiber;
+      } else {
+        // 否则说明不是大儿子
+        previousNewFiber.sibling = newFiber;
+      }
+      previousNewFiber = newFiber;
+    }
+  }
+  ....
+  return resultingFirstChild;
+}
+```
+
+- key 和 type 既有相同的也有不同的，复用老的并且更新属性，
+
+```js
+function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
+  let resultingFirstChild = null;
+  let previousNewFiber = null;
+  let newIndex = 0;
+  // 第一个老fiber
+  let oldFiber = currentFirstChild;
+  let nextOldFiber = null;
+  let lastPlacedIndex = 0;
+
+  for (; oldFiber !== null && newIndex < newChildren.length; newIndex++) {
+    // 先暂存下一个老的fiber
+    nextOldFiber = oldFiber.sibling;
+    // 试图更新或者是复用老的fiber
+    const newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIndex]);
+    if (newFiber == null) break;
+    if (shouldTrackSideEffects) {
+      // 表示创建了新的fiber 没有复用老的fiber
+      if (oldFiber && newFiber.alternate == null) {
+        deleteChild(returnFiber, oldFiber);
+      }
+    }
+    // 上一个放置好的索引
+    lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIndex);
+    if (previousNewFiber == null) {
+      resultingFirstChild = newFiber;
+    } else {
+      previousNewFiber.sibling = newFiber;
+    }
+    previousNewFiber = newFiber;
+    oldFiber = nextOldFiber;
+  }
+
+  // 说明新的儿子遍历完成了而老的fiber还有
+  if (newIndex === newChildren.length) {
+    // 删除剩下的老fiber
+    deleteRemainingChildren(returnFiber, oldFiber);
+    return resultingFirstChild;
+  }
+
+  // 老的fiber没了 新的还有 创建fiber然后插入
+  if (oldFiber == null) {
+    for (; newIndex < newChildren.length; newIndex++) {
+      const newFiber = createChild(returnFiber, newChildren[newIndex]);
+      if (newFiber == null) continue;
+      lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIndex);
+      if (previousNewFiber == null) {
+        resultingFirstChild = newFiber;
+      } else {
+        // 否则说明不是大儿子
+        previousNewFiber.sibling = newFiber;
+      }
+      previousNewFiber = newFiber;
+    }
+  }
+
+  // 处理节点移动的情况
+  // 创建一个key的map Map { key: FiberNode }
+  const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
+  // 开始遍历剩下的虚拟DOM
+  for (; newIndex < newChildren.length; newIndex++) {
+    const newFiber = updateFromMap(
+      existingChildren,
+      returnFiber,
+      newIndex,
+      newChildren[newIndex]
+    );
+    if (newFiber !== null) {
+      if (shouldTrackSideEffects) {
+        if (newFiber.alternate !== null) {
+          existingChildren.delete(
+            newFiber.key == null ? newIndex : newFiber.key
+          );
+        }
+      }
+      lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIndex);
+      if (previousNewFiber == null) {
+        resultingFirstChild = newFiber;
+      } else {
+        // 否则说明不是大儿子
+        previousNewFiber.sibling = newFiber;
+      }
+      previousNewFiber = newFiber;
+    }
+  }
+  // 删除map中剩下的老Fiber
+  if (shouldTrackSideEffects) {
+    existingChildren.forEach((child) => deleteChild(returnFiber, child));
+  }
+  return resultingFirstChild;
+}
+```
