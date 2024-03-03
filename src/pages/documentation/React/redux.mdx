@@ -1,0 +1,174 @@
+## Redux
+
+**解决跨组件通信问题**：当两个组件没有直接的关系的时候，通信起来会比较困难
+
+### 使用 redux
+
+- redux 可以独立于 `React` 使用
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Web site created using create-react-app"
+    />
+    <title>React App</title>
+  </head>
+
+  <body>
+    <div id="counter">0</div>
+    <button id="add">+</button>
+    <button id="minus">-</button>
+  </body>
+</html>
+```
+
+**使用 redux 主要分为 3 步**：
+
+- 创建修改数据的 `reducer`,传入 `createStore` 中,创建 `store`。
+- 通过 `store.subscribe` 订阅仓库的状态变化。
+- 通过 `dispatch` 向仓库中派发动作，这个动作类型是根据 `reducer` 中的动作类型来的
+
+```js
+import { legacy_createStore as createStore } from "redux";
+
+const ADD = "ADD";
+const MINUS = "MINUS";
+
+let initialState = { number: 0 };
+
+const reducer = (state = initialState, action) => {
+  switch (action.type) {
+    case ADD:
+      return { number: state.number + 1 };
+    case MINUS:
+      return { number: state.number - 1 };
+
+    default:
+      return state;
+  }
+};
+
+// 这里传的默认值优先级要高于initialState
+const store = createStore(reducer, { number: 5 });
+// 订阅仓库的状态变化
+store.subscribe(render);
+
+function render() {
+  document.getElementById("counter").innerHTML = String(
+    store.getState().number
+  );
+}
+render();
+
+document.getElementById("add").addEventListener("click", () => {
+  store.dispatch({ type: ADD });
+});
+document.getElementById("minus").addEventListener("click", () => {
+  store.dispatch({ type: MINUS });
+});
+```
+
+import { Callout } from "nextra/components";
+
+<Callout type="warning" emoji="⚠️">
+  createStore的第二个参数传递的初始值的优先级要比reducer中赋值的默认值优先级要高
+</Callout>
+
+### 实现简单的 redux
+
+**createStore**
+
+```js
+function createStore(reducer, preloadedState) {
+  let state = preloadedState;
+  let listeners = [];
+
+  // 返回当前仓库中的状态
+  function getState() {
+    return state;
+  }
+
+  // 向仓库派发动作
+  function dispatch(action) {
+    state = reducer(state, action);
+    // 通知所有的监听函数执行
+    listeners.forEach((l) => l());
+    return action;
+  }
+
+  function subscrib(listener) {
+    // 把订阅函数添加到监听数组中
+    listeners.push(listener);
+    // 取消函数
+    return () => {
+      let index = listeners.indexOf(listener);
+      listeners.splice(index, 1);
+    };
+  }
+
+  // 初始化 为了让reducer的初始值生效
+  dispatch({ type: "@@REDUX/INIT" });
+
+  return {
+    getState,
+    dispatch,
+    subscrib,
+  };
+}
+export default createStore;
+```
+
+**combineReducers**
+
+- 用来连接多个 reducer
+
+```js
+function combineReducers(reducers) {
+  return function combination(state = {}, action) {
+    let nextState = {};
+    for (let key in reducers) {
+      // 老的状态
+      let nextStateForKey = state[key];
+      // 获取此key对应的reducer函数
+      let reducerForKey = reducers[key];
+      nextState[key] = reducerForKey(nextStateForKey, action);
+    }
+    // 最终要返回新的状态对象
+    return nextState;
+  };
+}
+
+export default combineReducers;
+```
+
+**bindActionCreators**
+
+- 自动派发 action
+
+```js
+function bindActionCreator(actionCreator, dispatch) {
+  return function (...args) {
+    return dispatch(actionCreator.apply(this, args));
+  };
+}
+// actionCreators 可以是个对象， 也可以是个对象里面放函数
+export default function bindActionCreators(actionCreators, dispatch) {
+  if (typeof actionCreators == "function") {
+    return bindActionCreator(actionCreators, dispatch);
+  }
+  const boundActionCreators = {};
+  for (const key in actionCreators) {
+    const actionCreator = actionCreators[key];
+    if (typeof actionCreator === "function") {
+      boundActionCreators[key] = bindActionCreator(actionCreator, dispatch);
+    }
+  }
+  return boundActionCreators;
+}
+```

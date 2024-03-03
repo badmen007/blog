@@ -1,0 +1,269 @@
+## react-redux
+
+### 用法
+
+- 通过 `Provider` 来注入 `store`
+
+```js showLineNumbers {5-6,9,15} copy showLineNumbers
+import React from "react";
+import ReactDOM from "react-dom/client";
+import Counter1 from "./components/Counter1";
+import Counter2 from "./components/Counter2";
+import { Provider } from "./react-redux";
+import store from "./store";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <Provider store={store}>
+    <div>
+      <Counter1 />
+      <hr />
+      <Counter2 />
+    </div>
+  </Provider>
+);
+```
+
+- **类组件**中通过 `connect` 来连接
+
+```js showLineNumbers {18} copy
+import { connect } from "../react-redux";
+class Counter1 extends React.Component {
+  render() {
+    const { number, add1, minus1 } = this.props;
+    return (
+      <div>
+        <p>{number}</p>
+        <button onClick={add1}>+</button>
+        <button onClick={minus1}>-</button>
+      </div>
+    );
+  }
+}
+// 把仓库中的状态映射为组件的属性对象
+const mapStateToProps = (state) => state.counter1;
+// 把store.dispatch方法映射为组件的属性对象
+const mapDispatchToProps = actionCreators;
+export default connect(mapStateToProps, mapDispatchToProps)(Counter1);
+```
+
+- **函数组件**通过 `useSelector、useDispatch`
+
+```js filename="Counter1.js" copy showLineNumbers {4-5}
+import { useSelector, useDispatch, useBoundDispatch } from "../react-redux";
+import actionCreators from "../store/actionCreators/counter1";
+function Counter1() {
+  let { number } = useSelector((state) => state.counter1);
+  let dispatch = useDispatch();
+  console.log("组件重新渲染 counter1");
+  let { add1, minus1 } = useBoundDispatch(actionCreators);
+  return (
+    <div>
+      <p>{number}</p>
+      <button onClick={add1}>+</button>
+      <button onClick={minus1}>-</button>
+    </div>
+  );
+}
+export default Counter1;
+```
+
+```js filename="actionCreators/counter1.js" copy showLineNumbers
+import { ADD1, MINUS1 } from "../action-types";
+
+const actionCreators = {
+  add1() {
+    return { type: ADD1 };
+  },
+  minus1() {
+    return { type: MINUS1 };
+  },
+};
+
+export default actionCreators;
+```
+
+```js filename="action-types.js" copy showLineNumbers
+export const ADD1 = "ADD1";
+export const MINUS1 = "MINUS1";
+```
+
+### 实现简单的 react-redux
+
+**connect**
+
+- 通过上下文来实现的 类组件和函数组件两种
+
+```js filename="connect.js" copy showLineNumbers
+import React, { useReducer } from "react";
+import ReactReduxContext from "./ReactReduxContext";
+import { bindActionCreators } from "../redux";
+
+// 连接仓库和组件
+function connect(mapStateToProps, mapDispatchToProps) {
+  return function (Oldcomponent) {
+    return class extends React.Component {
+      static contextType = ReactReduxContext;
+      constructor(props, context) {
+        super(props);
+        // 1. 获取仓库
+        // 在类组件的constructor中拿不到this.context
+        // 要通过constructor第二个参数拿
+        const { store } = context;
+        const { getState, subscribe, dispatch } = store;
+        // 2.获取组件的状态 进行映射
+        this.state = mapStateToProps(getState());
+        // 3.让当前的组件订阅仓库的变化，当仓库的状态发生变化的时候重新渲染组件
+        this.unsubscribe = subscribe(() => {
+          this.setState(mapStateToProps(getState()));
+        });
+
+        let dispatchProps = {};
+        if (typeof mapDispatchToProps == "function") {
+          dispatchProps = mapDispatchToProps(dispatch);
+        } else if (typeof mapDispatchToProps === "object") {
+          dispatchProps = bindActionCreators(mapDispatchToProps, dispatch);
+        }
+        this.dispatchProps = dispatchProps;
+      }
+      componentWillUnmount() {
+        // 组件将要卸载之前 取消订阅
+        this.unsubscribe();
+      }
+      render() {
+        return <Oldcomponent {...this.state} {...this.dispatchProps} />;
+      }
+    };
+  };
+}
+
+function connect1(mapStateToProps, mapDispatchToProps) {
+  return function (OldComponent) {
+    return function (props) {
+      // 获取仓库
+      const { store } = React.useContext(ReactReduxContext);
+      const { getState, subscribe, dispatch } = store;
+      const prevState = getState();
+      const stateProps = React.useMemo(
+        () => mapStateToProps(prevState),
+        [prevState]
+      );
+      const dispatchProps = React.useMemo(() => {
+        let dispatchProps = {};
+        if (typeof mapDispatchToProps == "function") {
+          dispatchProps = mapDispatchToProps(dispatch);
+        } else if (typeof mapDispatchToProps === "object") {
+          dispatchProps = bindActionCreators(mapDispatchToProps, dispatch);
+        }
+        return dispatchProps;
+      }, [dispatch]);
+
+      // 这个方法就是刷新组件的作用
+      const [, setState] = useReducer((x) => x + 1, 0);
+      // 订阅的时候一般会用useLayoutEffect
+      // 订阅中就是传入一个能够更新组件的函数
+      React.useLayoutEffect(() => {
+        return subscribe(setState);
+      }, [subscribe]);
+
+      // 可以用下面的api来优化 react18新出的
+      // let stateProps = React.useSyncExternalStore(subscribe, () => mapStateToProps(getState()))
+
+      return <OldComponent {...props} {...stateProps} {...dispatchProps} />;
+    };
+  };
+}
+
+export default connect1;
+```
+
+**Provider**
+
+```js filename="Provider.js" copy showLineNumbers
+import React from "react";
+import ReactReduxContext from "./ReactReduxContext";
+
+function Provider({ store, children }) {
+  const value = { store };
+  return (
+    <ReactReduxContext.Provider value={value}>
+      {children}
+    </ReactReduxContext.Provider>
+  );
+}
+export default Provider;
+```
+
+**ReactReduxContext**
+
+```js filename="ReactReduxContext.js" copy showLineNumbers
+import React from "react";
+export const ReactReduxContext = React.createContext(null);
+export default ReactReduxContext;
+```
+
+**useDispatch**
+
+```js filename="useDispatch.js" copy showLineNumbers
+import React from "react";
+import ReactReduxContext from "../ReactReduxContext";
+
+function useDispatch() {
+  const { store } = React.useContext(ReactReduxContext);
+  return store.dispatch;
+}
+
+export default useDispatch;
+```
+
+**useSelector**
+
+- 15 行有个闭包的问题 `equalityFn` 第二个参数是用的 `ref` 来获取最新的值
+
+```js filename="useSelector.js" copy showLineNumbers {15}
+import React from "react";
+import { shallowEqual } from "react-redux";
+import ReactReduxContext from "../ReactReduxContext";
+
+function useSelector(selector, equalityFn = shallowEqual) {
+  const { store } = React.useContext(ReactReduxContext);
+  const lastSelectRef = React.useRef(null);
+  let state = store.getState();
+  let selectedState = selector(state);
+  let [, setState] = React.useReducer((x) => x + 1, 0);
+  React.useLayoutEffect(() => {
+    return store.subscribe(() => {
+      let newSelectedState = selector(store.getState());
+      // 数据变了才更新 闭包
+      if (!equalityFn(newSelectedState, lastSelectRef.current)) {
+        setState();
+      }
+    });
+  }, []);
+  React.useLayoutEffect(() => {
+    lastSelectRef.current = selectedState;
+  });
+  return selectedState;
+}
+
+export default useSelector;
+```
+
+**拓展**
+
+- 通过 `useBoundDispatch` 可以直接解构出方法 省去了 `dispatch`
+
+```js filename="counter1.js" copy showLineNumbers {5}
+function Counter1() {
+  let { number } = useSelector((state) => state.counter1);
+  let dispatch = useDispatch();
+  console.log("组件重新渲染 counter1");
+  let { add1, minus1 } = useBoundDispatch(actionCreators);
+  return (
+    <div>
+      <p>{number}</p>
+      <button onClick={add1}>+</button>
+      <button onClick={minus1}>-</button>
+    </div>
+  );
+}
+```

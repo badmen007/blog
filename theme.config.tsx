@@ -16,9 +16,6 @@ const config: DocsThemeConfig = {
   project: {
     link: "https://github.com/badmen007",
   },
-  chat: {
-    link: "",
-  },
   footer: {
     text: "Copyright Viva La Vida 2023",
   },

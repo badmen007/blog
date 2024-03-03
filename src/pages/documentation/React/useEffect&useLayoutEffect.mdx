@@ -1,0 +1,15 @@
+## useEffect 和 useLayoutEffect
+
+### useEffect
+
+- 参数(create, dep)
+- 当依赖不发生变化的时候(dep), 不会重新执行 create 函数，在每一次变化之前都会先执行上一次的副作用函数
+  也就是 create 返回的副作用函数, 再去执行 create 函数
+
+## useLayoutEffect
+
+- useLayoutEffect的执行时机
+- 它的销毁函数是在DOM变更的时候执行的
+- 在DOM变更之后先执行 useLayoutEffect的回调函数，再执行useEffect的销毁函数，然后再执行useEffect的回调函数
+
+![useLayoutEffect](../../../images/useLayoutEffect.png)
