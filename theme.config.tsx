@@ -17,7 +17,7 @@ const config: DocsThemeConfig = {
     link: "https://github.com/badmen007",
   },
   footer: {
-    text: "Copyright Viva La Vida 2023",
+    text: `Copyright Viva La Vida ${new Date().getFullYear()}`,
   },
   sidebar: {
     titleComponent: ({ title, type }) => {
