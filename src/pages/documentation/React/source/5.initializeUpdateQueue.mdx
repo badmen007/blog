@@ -1,0 +1,34 @@
+## 初始化 updateQueue
+
+![初始化](src/assets/初始化updateQueue.png)
+
+- `react-reconciler/src/ReactFiberRoot.js`
+
+```js showLineNumbers {2, 11}
+import { createHostRootFiber } from "./ReactFiber";
+import { initializeUpdateQueue } from "./ReactFiberClassUpdateQueue";
+function FiberRootNode(containerInfo) {
+  this.containerInfo = containerInfo;
+}
+export function createFiberRoot(containerInfo) {
+  const root = new FiberRootNode(containerInfo);
+  const uninitializedFiber = createHostRootFiber();
+  root.current = uninitializedFiber;
+  uninitializedFiber.stateNode = root;
+  initializeUpdateQueue(uninitializedFiber);
+  return root;
+}
+```
+
+- `react-reconciler/src/ReactFiberClassUpdateQueue.js`
+
+```js
+export function initializeUpdateQueue(fiber) {
+  const queue = {
+    shared: {
+      pending: null,
+    },
+  };
+  fiber.updateQueue = queue;
+}
+```

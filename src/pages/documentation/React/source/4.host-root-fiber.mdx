@@ -1,0 +1,63 @@
+## 创建 RootFiber
+
+![RootFiber](src/assets/RootFiber.png)
+
+- react-reconciler/src/ReactFiberRoot.js
+
+```js showLineNumbers copy {1,7-9}
+import { createHostRootFiber } from "./ReactFiber";
+function FiberRootNode(containerInfo) {
+  this.containerInfo = containerInfo;
+}
+export function createFiberRoot(containerInfo) {
+  const root = new FiberRootNode(containerInfo);
+  const uninitializedFiber = createHostRootFiber();
+  root.current = uninitializedFiber;
+  uninitializedFiber.stateNode = root;
+  return root;
+}
+```
+
+- react-reconciler/src/ReactFiber.js
+
+```js
+import { HostRoot } from "./ReactWorkTags";
+import { NoFlags } from "./ReactFiberFlags";
+export function FiberNode(tag, pendingProps, key) {
+  this.tag = tag;
+  this.key = key;
+  this.type = null;
+  this.stateNode = null;
+
+  this.return = null;
+  this.child = null;
+  this.sibling = null;
+
+  this.pendingProps = pendingProps;
+  this.memoizedProps = null;
+  this.updateQueue = null;
+  this.memoizedState = null;
+
+  this.flags = NoFlags;
+  this.subtreeFlags = NoFlags;
+  this.alternate = null;
+}
+function createFiber(tag, pendingProps, key) {
+  return new FiberNode(tag, pendingProps, key);
+}
+export function createHostRootFiber() {
+  return createFiber(HostRoot, null, null);
+}
+```
+
+- react-reconciler/src/ReactWorkTags.js
+
+```js
+export const HostRoot = 3;
+```
+
+- react-reconciler/src/ReactFiberFlags.js
+
+```js
+export const NoFlags = 0b00000000000000000000000000;
+```

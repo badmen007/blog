@@ -1,0 +1,247 @@
+# 组件通信
+
+### 父向子传递数据 通过 props
+
+```js
+function ChildComponent(props) {
+  return <div>{props.text}</div>;
+}
+
+function Parent() {
+  const [text, setText] = useState("加载中。。。");
+  useEffect(() => {
+    setTimeout(() => {
+      setText("加载完成");
+    }, 2000);
+  });
+  return (
+    <div>
+      <div>父组件</div>
+      <ChildComponent text={text} />
+    </div>
+  );
+}
+```
+
+### 子向父传递参数 通过回调函数的形式
+
+```js
+function ChildComponent(props) {
+  const sendDataToParent = () => {
+    props.receiveData("来自儿子的数据");
+  };
+
+  return <button onClick={sendDataToParent}>发送数据给父组件</button>;
+}
+
+function Parent() {
+  const [text, setText] = useState("");
+  const handleChildData = (data) => {
+    setText(data);
+  };
+  return (
+    <div>
+      <div>父组件</div>
+      <div>父亲接收到子组件的数据: {text}</div>
+      <ChildComponent receiveData={handleChildData} />
+    </div>
+  );
+}
+```
+
+### 通过获取实例的方法
+
+- 对于函数组件来说，父组件通过 ref 拿取自组件真实 DOM 或者是方法、属性需要进行下面两个步骤：
+  - 通过 `forwardRef` 进行转发，
+  - 通过 `useImperativeHandle` 来暴露方法
+
+```js
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+
+function Child(props, ref) {
+  const [visible, setVisible] = useState(false);
+  const show = () => {
+    setVisible(true);
+  };
+  const hide = () => {
+    setVisible(false);
+  };
+
+  useImperativeHandle(
+    ref,
+    () => {
+      return {
+        show,
+      };
+    },
+    []
+  );
+
+  return (
+    <div ref={ref} style={{ display: visible ? "block" : "none" }}>
+      <h2>我是框框</h2>
+      <button onClick={hide}>关闭</button>
+    </div>
+  );
+}
+
+const ChildComponent = forwardRef(Child);
+
+function Parent() {
+  const modalRef = useRef(null);
+  const openModal = () => {
+    modalRef.current.show();
+  };
+  return (
+    <div>
+      <button onClick={openModal}>打开模态框</button>
+      <ChildComponent ref={modalRef} />
+    </div>
+  );
+}
+
+export default Parent;
+```
+
+### 兄弟之间如何传值
+
+- 兄弟之间通信要依靠父组件，通过修改父组件的值来更新子组件的值，也叫状态提升
+
+```js
+function ChildOne(props) {
+  const sendData = () => {
+    props.sendData("来自ChildOne的数据");
+  };
+
+  return <button onClick={sendData}>发送数据到兄弟组件ChildTwo</button>;
+}
+
+function ChildTwo(props) {
+  return <div>从兄弟组件ChildOne中获取到的数据: {props.data}</div>;
+}
+
+function Parent() {
+  const [data, setData] = useState("");
+  const handleData = (data) => {
+    setData(data);
+  };
+  return (
+    <div>
+      <ChildOne sendData={handleData} />
+      <ChildTwo data={data} />
+    </div>
+  );
+}
+```
+
+### 两个没有关系的组件之间通信
+
+- Context 通过上下文来通信
+
+```js
+const LanguageContext = createContext();
+
+function LanguageProvider({ children }) {
+  const [language, setLanguage] = useState("en");
+  const switchLanguage = (lang) => {
+    setLanguage(lang);
+  };
+  return (
+    <LanguageContext.Provider value={{ language, switchLanguage }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+const texts = {
+  en: {
+    greeting: "hello",
+    goodbye: "goodbye",
+  },
+  zh: {
+    greeting: "你好",
+    goodbye: "再见",
+  },
+};
+
+const LanguageSwitcher = () => {
+  const { switchLanguage } = useContext(LanguageContext);
+  return (
+    <div>
+      <button onClick={() => switchLanguage("en")}>English</button>
+      <button onClick={() => switchLanguage("zh")}>中文</button>
+    </div>
+  );
+};
+
+const LocalizedText = () => {
+  const { language } = useContext(LanguageContext);
+  return (
+    <div>
+      <p>{texts[language].gretting}</p>
+      <p>{texts[language].goodbye}</p>
+    </div>
+  );
+};
+
+const App = () => {
+  return (
+    <LanguageProvider>
+      <LanguageSwitcher />
+      <LocalizedText />
+    </LanguageProvider>
+  );
+};
+```
+
+### 全局变量和全局事件
+
+```js
+const globalData = {
+  message: "",
+};
+
+const MessageSetter = () => {
+  const setMessage = (msg) => {
+    globalData.message = msg;
+    window.dispatchEvent(new Event("globalDataChanged"));
+  };
+  return (
+    <div>
+      <button onClick={() => setMessage("hello")}>set Message</button>
+    </div>
+  );
+};
+
+const MessageViewer = () => {
+  const [message, setMessage] = useState(globalData.message);
+  useEffect(() => {
+    const handle = () => setMessage(globalData.message);
+    window.addEventListener("globalDataChanged", handle);
+    return () => {
+      window.removeEventListener("globalDataChanged", handle);
+    };
+  }, []);
+
+  return (
+    <div>
+      <p>Message: {message}</p>
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <div>
+      <MessageSetter />
+      <MessageViewer />
+    </div>
+  );
+}
+```
+
+### 通过第三方库
+
+- Redux
+- Mobx
+- Zustand

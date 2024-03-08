@@ -1,0 +1,75 @@
+## 创建目录初始化
+
+```bash
+mkdir react18
+cd react18
+npm init -y
+```
+
+## 安装 vite
+
+```bash
+npm install vite @vitejs/plugin-react --save
+```
+
+## vite.config.js
+
+- `vite` 的配置文件
+
+```js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  define: {
+    __DEV__: true,
+    __PROFILE__: true,
+    __UMD__: true,
+    __EXPERIMENTAL__: true,
+  },
+  resolve: {
+    alias: {
+      react: path.posix.resolve("src/react"),
+      "react-dom": path.posix.resolve("src/react-dom"),
+      "react-dom-bindings": path.posix.resolve("src/react-dom-bindings"),
+      "react-reconciler": path.posix.resolve("src/react-reconciler"),
+      scheduler: path.posix.resolve("src/scheduler"),
+      shared: path.posix.resolve("src/shared"),
+    },
+  },
+  plugins: [react()],
+  optimizeDeps: {
+    force: true,
+  },
+});
+```
+
+## jsconfig.json
+
+- 用来指定 `javascript` 项目的路径、根目录等，让 `vscode` 有更好的提示
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "react/*": ["src/react/*"],
+      "react-dom/*": ["src/react-dom/*"],
+      "react-dom-bindings/*": ["src/react-dom-bindings/*"],
+      "react-reconciler/*": ["src/react-reconciler/*"],
+      "scheduler/*": ["src/scheduler/*"],
+      "shared/*": ["src/shared/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+## main.jsx
+
+- `src/main.jsx`
+
+```js
+console.log("main");
+```

@@ -1,0 +1,75 @@
+# JSX
+
+## jsx 特点
+
+- jsx 是一种看起来很像 html 的语法
+- jsx 本质上还是 `js`,可以插入任意的 `js` 表达式
+- jsx 使得**组件化**变得非常容易，一个函数就可以是个组件
+- **对比**: 和 vue 这中模版语言比较来说，jsx 的写法更加灵活。
+
+### Counter 组件
+
+- 简单的 `button` 组件
+
+import { useState } from "react";
+
+export function Counter({ children }) {
+  const [count, setCount] = useState(0);
+  return (
+    <button
+      onClick={() => setCount(count + 1)}
+      className="border w-20 h-10 bg-sky-500 rounded-full"
+    >
+      {count}
+    </button>
+  );
+}
+
+<div className="mt-6 rounded-xl border border-gray-200 p-4 dark:border-gray-900">
+  **Click**: <Counter></Counter>
+</div>
+
+```js
+import { useState } from "react";
+
+export function Counter({ children }) {
+  const [count, setCount] = useState(0);
+  return (
+    <button
+      onClick={() => setCount(count + 1)}
+      className="border w-20 h-10 bg-sky-500 rounded-full"
+    >
+      {count}
+    </button>
+  );
+}
+```
+
+### 为什么 jsx 能够被识别呢
+
+jsx 怎么转换成 js 的？ 有两种转换方式
+
+[为什么换成新的插件来转换](https://legacy.reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html)
+
+- 老版`@babel/preset-react` React.createElement -> 可以将 jsx 转换成 js
+- 新版`@babel/plugin-transform-react-jsx`
+
+新版的主要解决两个问题：
+
+- 需要每个组件都要引入 React，即使你没有用到，但是为了转换就要引入
+- React.createElement 不允许进行一些[性能改进和简化](https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md#motivation)。
+
+## 为什么要用虚拟 DOM
+
+**虚拟 DOM 有几个优势：**
+
+- **性能提高**：可以批量更新真实 DOM，并且只更新修改的部分，避免了频繁操作 DOM 和不必要的重排重绘
+- **编程简化**：开发的时候不需要关心怎么去高效的更新 DOM
+- **跨平台**：虚拟 DOM 只是 js 对象，因此可以在不同的环境中使用 比如 `React Native`
+
+**局限性:**
+
+- 虽然提高了性能，但是不是所有的情况下都是高效的，比如：初次渲染。某些情况下操作真是 DOM 的速度要更快
+- DOM-diff 和渲染仍然要经过大量的计算，对于开发者来说，开发的时候就需要一定的优化技巧。
+
+## 从 jsx 渲染到屏幕的全过程

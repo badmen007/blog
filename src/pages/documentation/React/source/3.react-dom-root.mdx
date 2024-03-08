@@ -1,0 +1,44 @@
+## 创建 ReactDOMRoot
+
+![ReactDOMRoot](src/assets/ReactDOMRoot.png)
+
+- main.jsx
+
+```js
+import { createRoot } from "react-dom/client";
+let element = (
+  <h1>
+    hello <span color="red">world</span>
+  </h1>
+);
+const root = createRoot(document.getElementById("root"));
+console.log(root);
+```
+
+- react-dom/client.js
+
+```js
+export { createRoot } from "./src/client/ReactDOMRoot";
+```
+
+- react-dom/src/client/ReactDOMRoot.js
+
+```js
+import { createContainer } from "react-reconciler/src/ReactFiberReconciler";
+function ReactDOMRoot(internalRoot) {
+  this._internalRoot = internalRoot;
+}
+export function createRoot(container) {
+  const root = createContainer(container);
+  return new ReactDOMRoot(root);
+}
+```
+
+- react-reconciler/src/ReactFiberReconciler.js
+
+```js
+import { createFiberRoot } from "./ReactFiberRoot";
+export function createContainer(containerInfo) {
+  return createFiberRoot(containerInfo);
+}
+```

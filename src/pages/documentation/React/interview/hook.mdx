@@ -1,0 +1,180 @@
+# Hook 相关的问题
+
+## 为什么会出现 hook?
+
+**hook 的出现主要解决了以下的问题**：
+
+- **逻辑复用难度**：在类组件中服用逻辑往往是通过高阶组件(Hoc)的方式,但是这种形式往往会造成代码结构复杂，不易阅读的问题。
+- **组件的复杂性**：业务逻辑分散在不同的生命周期中，这就可能造成在同一个生命周期中的逻辑没有相关性
+- **this**: 在类组件中，往往需要考虑 this 的问题，事件的绑定或者是异步。
+- **tree-shaking**: 在 React16.3 之后 引入了新的生命周期，例如 `getDerivedStateFromProps` 和 `getSnapshotBeforeUpdate`。
+  这些方法在组件挂载和更新的时候调用。这些方法是的调用时机是在 `React` 运行时来控制的。
+
+## 为什么 hooks 要遵循两条主要的规则？
+
+- **不在条件语句、循环语句、嵌套函数内调用 `hooks`**
+  - 为了保证 hooks 在每次渲染的时候都以相同的顺序调用。
+  - 如果在条件语句或者是循环语句中使用 hooks，就可能导致在多次渲染的时候数量和顺序不一致，导致状态混乱
+- **只在 `React` 函数组件中调用 `hooks`**
+
+## React 中如何获取上一轮的值
+
+- 可以通过 useRef 来获取上一轮的值
+- 因为 useEffect 是在渲染之后执行的
+- ref 的 current 属性变了不会导致组件更新
+  - 组件第一次渲染 prevValue.current 是 undefined 因为 渲染的时候不会走 useEffect
+  - 当组件渲染完成了之后，会执行 useEffect 此时 prevValue.current 变成 0
+  - 当点击按钮更新 count 的时候，组件会重新渲染，此时 count 的值是 1
+  - 当组件 渲染完成之后 prevValue.current 值才变成 1
+- 就是说这个 prevValue.current 的值永远比 count 的值要慢
+
+```js
+import { useEffect, useRef, useState } from "react";
+
+function App() {
+  const [count, setCount] = useState(0);
+  const prevValue = useRef();
+  useEffect(() => {
+    prevValue.current = count;
+  });
+  console.log(prevValue.current);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+
+export default App;
+```
+
+```js
+import { useEffect, useRef, useState } from "react";
+
+// 自定义hook
+function usePrevious(value) {
+  const prevValue = useRef();
+  useEffect(() => {
+    prevValue.current = value;
+  }, [value]);
+  return prevValue.current;
+}
+
+function App() {
+  const [count, setCount] = useState(0);
+  const prevValue = usePrevious(count);
+  return (
+    <div>
+      <p>{count}</p>
+      <p>{prevValue}</p>
+      <button onClick={() => setCount(count + 1)}>+</button>
+    </div>
+  );
+}
+
+export default App;
+```
+
+import { useEffect, useRef, useState } from "react";
+
+export function usePrevious(value) {
+  const prevValue = useRef();
+  useEffect(() => {
+    prevValue.current = value;
+  }, [value]);
+  return prevValue.current;
+}
+
+export function App() {
+  const [count, setCount] = useState(0);
+  const prevValue = usePrevious(count);
+  return (
+    <div className="mt-6 rounded-xl border border-gray-200 p-4 dark:border-gray-900">
+      <p>count: {count}</p>
+      <p>prevValue: {prevValue}</p>
+      <button
+        onClick={() => setCount(count + 1)}
+        className="border w-20 h-10 bg-sky-500 rounded-full mt-5"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+<App></App>
+
+## React.memo 和 React.useMemo 的区别？
+
+### memo
+
+- 针对的是组件
+- 当父组件的状态发生变化的时候，如果传递给子组件的属性并没有发生变化，那么不希望子组件更新
+
+```js
+import { memo, useState } from "react";
+
+function ChildComponent({ name, age }) {
+  console.log("child render");
+  return (
+    <div>
+      <p>child</p>
+      <div>{name}</div>
+      <div>{age}</div>
+    </div>
+  );
+}
+
+// 也可以用参数判断
+// const MemoChildComponent = memo(ChildComponent, (prevProps, nextProps) => {
+//   return prevProps.name == nextProps.name;
+// });
+const MemoChildComponent = memo(ChildComponent);
+
+function ParentComponent() {
+  const [name, setName] = useState("xz");
+  const [age, setAge] = useState(10);
+  console.log("parent render");
+  return (
+    <>
+      <button onClick={() => setName(name + "1")}>change Name</button>
+      <button onClick={() => setAge(age + 1)}>change Age</button>
+      <MemoChildComponent name={name} />
+    </>
+  );
+}
+export default ParentComponent;
+```
+
+### useMemo
+
+- 针对的是组件内部的值
+- 当组件内部有一些值需要计算，但是只有当依赖的值发生变化了之后才允许重新计算
+
+```js
+import { memo, useMemo, useState } from "react";
+
+function ChildComponent({ name, age }) {
+  console.log("child render");
+  return (
+    <div>
+      <p>child</p>
+      <div>{name}</div>
+      <div>{age}</div>
+    </div>
+  );
+}
+
+function ParentComponent() {
+  const [name, setName] = useState("xz");
+  const [age, setAge] = useState(10);
+  const ChildMemoComponent = useMemo(
+    () => <ChildComponent name={name} />,
+    [name]
+  );
+  return (
+    <>
+      <button onClick={() => setName(name + "1")}>change Name</button>
+      <button onClick={() => setAge(age + 1)}>change Age</button>
+      {ChildMemoComponent}
+    </>
+  );
+}
+export default ParentComponent;
+```

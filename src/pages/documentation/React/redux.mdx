@@ -172,3 +172,112 @@ export default function bindActionCreators(actionCreators, dispatch) {
   return boundActionCreators;
 }
 ```
+
+**compose**
+
+```js
+function compose(...funcs) {
+  if (funcs.length === 0) return (args) => args;
+  if (funcs.length === 1) return funcs(...args);
+  return funcs.reduce(
+    (a, b) =>
+      (...args) =>
+        a(b(...args))
+  );
+}
+
+export default compose;
+```
+
+**applyMiddleware**
+
+```js copy
+import compose from "../redux/compose";
+// 从右往前组合 从前往后执行
+function applyMiddleware(...middlewares) {
+  return function (createStore) {
+    return function (reducer, preloadedState) {
+      // 1. 创建仓库
+      let store = createStore(reducer, preloadedState);
+      let dispatch;
+      // ?
+      let middlewareAPI = {
+        getState: store.getState,
+        dispatch: (action) => dispatch(action),
+      };
+      const chain = middlewares.map((middleware) => middleware(middlewareAPI));
+      dispatch = compose(...chain)(store.dispatch);
+      //dispatch = middlewares(store)(store.dispatch);
+      return {
+        ...store,
+        dispatch,
+      };
+    };
+  };
+}
+export default applyMiddleware;
+```
+
+### 中间件
+
+- 中间件的写法都是固定的 三层函数
+
+**redux-logger**
+
+```js
+function logger(store) {
+  return function (next) {
+    return function (action) {
+      console.log("prev state", store.getState());
+      let result = next(action);
+      console.log("next state", store.getState());
+      return result;
+    };
+  };
+}
+
+export default logger;
+```
+
+**redux-thunk**
+
+```js
+function thunk({ dispatch, getState }) {
+  return function (next) {
+    return function (action) {
+      // 传递的是一个函数
+      if (typeof action === "function") {
+        return action(dispatch, getState);
+      } else {
+        return next(action);
+      }
+    };
+  };
+}
+export default thunk;
+```
+
+**redux-promise**
+
+```js
+function promise({ dispatch, getState }) {
+  return function (next) {
+    return function (action) {
+      // 判断是不是promise
+      if (action.then && typeof action.then === "function") {
+        return action.then(dispatch).catch(dispatch);
+      } else if (action.payload && typeof action.payload.then === "function") {
+        return action.payload
+          .then((payload) => dispatch({ ...action, payload }))
+          .catch((error) => {
+            dispatch({ ...action, payload: error, error: true });
+            return Promise.reject(error);
+          });
+      } else {
+        return next(action);
+      }
+    };
+  };
+}
+export default promise;
+```

@@ -1,0 +1,508 @@
+# webpack-flow
+
+## 1. 调试 webpack
+
+### .vscode/launch.json
+
+```json copy filename="launch.json"
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Program",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/node_modules/webpack/bin/webpack.js"
+    }
+  ]
+}
+```
+
+### debug.js
+
+```js
+const webpack = require("webpack");
+const config = require("./webpack.config");
+const fs = require("fs");
+
+const compiler = webpack(config);
+// 4. 执行run方法 开始执行编译
+compiler.run((err, stats) => {
+  const statsString = JSON.stringify(
+    stats.toJson({
+      modules: true, // 每个文件都是一个模块
+      chunks: true, // 打印所有的代码块 模块的集合会成一个代码块
+      assets: true, // 输出的文件列表
+    })
+  );
+  fs.writeFileSync("./stats.json", statsString);
+});
+```
+
+## tapbale
+
+- 类似发布订阅
+
+```js
+// tapable 实现插件机制
+
+// const { SyncHook } = require("tapable");
+
+class SyncHook {
+  taps = [];
+  tap(name, cb) {
+    this.taps.push(cb);
+  }
+  call() {
+    this.taps.forEach((cb) => cb());
+  }
+}
+
+let hook = new SyncHook();
+
+class SomePlugin {
+  apply() {
+    // 相当于订阅
+    hook.tap("插件的名称", () => {
+      console.log("===========");
+      console.log("插件的名称");
+      console.log("===========");
+    });
+  }
+}
+const somePlugin = new SomePlugin();
+somePlugin.apply();
+
+// 相当于发布
+hook.call();
+```
+
+## webpack 编译流程
+
+import { Steps } from "nextra/components";
+
+<Steps>
+### 初始化参数，从webpack.config.js中拿到配置然后和命令行中的参数进行合并
+
+```js copy filename="my-webpack.js"  showLineNumbers {3-10}
+const Compiler = require("./Compiler");
+function webpack(config) {
+  // 1. 初始化参数：从配置文件和Shell语句中读取并合并参数，得到最终的配置对象
+  const argv = process.argv.slice(2);
+  const shellOptions = argv.reduce((shellOptions, options, index) => {
+    const [key, value] = options.split("=");
+    shellOptions[key.slice(2)] = value;
+    return shellOptions;
+  }, {});
+  const finalOptions = { ...config, ...shellOptions };
+
+  // 2. 用上一步的参数，创建compiler对象
+  const compiler = new Compiler(finalOptions);
+  // 3. 加载所有配置的插件
+  finalOptions.plugins.forEach((plugin) => {
+    plugin.apply(compiler);
+  });
+  return compiler;
+}
+
+module.exports = webpack;
+```
+
+### 用上一步的参数创建 Compiler 初始化参数
+
+```js copy filename="my-webpack.js"  showLineNumbers {12-13}
+const Compiler = require("./Compiler");
+function webpack(config) {
+  // 1. 初始化参数：从配置文件和Shell语句中读取并合并参数，得到最终的配置对象
+  const argv = process.argv.slice(2);
+  const shellOptions = argv.reduce((shellOptions, options, index) => {
+    const [key, value] = options.split("=");
+    shellOptions[key.slice(2)] = value;
+    return shellOptions;
+  }, {});
+  const finalOptions = { ...config, ...shellOptions };
+
+  // 2. 用上一步的参数，创建compiler对象
+  const compiler = new Compiler(finalOptions);
+  // 3. 加载所有配置的插件
+  finalOptions.plugins.forEach((plugin) => {
+    plugin.apply(compiler);
+  });
+  return compiler;
+}
+
+module.exports = webpack;
+```
+
+### 加载所有配置的插件
+
+```js copy filename="my-webpack.js"  showLineNumbers {5-7}
+const Compiler = require("./Compiler");
+function webpack(config) {
+  ...
+  // 3. 加载所有配置的插件
+  finalOptions.plugins.forEach((plugin) => {
+    plugin.apply(compiler);
+  });
+
+}
+
+module.exports = webpack;
+```
+
+### 执行 run 方法进行编译
+
+```js copy filename="debug.js"  showLineNumbers {7-17}
+const webpack = require("./my-webpack");
+const config = require("./webpack.config");
+const fs = require("fs");
+
+const compiler = webpack(config);
+// 4. 执行run方法 开始执行编译
+compiler.run((err, stats) => {
+  console.log(err);
+  const statsString = JSON.stringify(
+    stats.toJson({
+      modules: true, // 每个文件都是一个模块
+      chunks: true, // 打印所有的代码块 模块的集合会成一个代码块
+      assets: true, // 输出的文件列表
+    })
+  );
+  fs.writeFileSync("./stats.json", statsString);
+});
+module.exports = Compiler;
+```
+
+```js copy filename="Compiler.js"  showLineNumbers {13-38}
+const { SyncHook } = require("tapable");
+const fs = require("fs");
+const Complication = require("./Complication");
+const path = require("path");
+class Compiler {
+  constructor(options) {
+    this.options = options;
+    this.hooks = {
+      run: new SyncHook(),
+      done: new SyncHook(),
+    };
+  }
+  run(callback) {
+    this.hooks.run.call();
+    const onCompiled = (err, stats, fileDependencies) => {
+      // 10.在确定好输出内容之后， 根据配置确定输出的路径和文件名， 把文件写入
+      const { assets } = stats;
+      for (let filename in assets) {
+        let filePath = path.posix.join(this.options.output.path, filename);
+        fs.writeFileSync(filePath, assets[filename], "utf8");
+      }
+      callback(null, {
+        toJson: () => stats,
+      });
+      // fileDependencies 本次打包涉及哪些文件
+      [...fileDependencies].forEach((file) => {
+        fs.watch(file, () => this.compile(onCompiled));
+      });
+    };
+    // 开始一次新的编译
+    this.compile(onCompiled);
+
+    this.hooks.done.call();
+  }
+  compile(onCompiled) {
+    const complication = new Complication(this.options);
+    complication.build(onCompiled);
+  }
+}
+module.exports = Compiler;
+```
+
+### 根据配置中的 entry 找到入口文件
+
+### 从入口文件出发,调用所有配置的 Loader 对模块进行编译
+
+### 找出该模块依赖的模块，再递归本步骤知道所有的入口依赖的文件都经过本步骤的处理
+
+### 根据入口和模块之间的依赖关系，组装成一个个包含多个模块的 Chunk
+
+### 再把每个 Chunk 转换成一个单独的文件加入到输出列表中
+
+### 在确定好输出内容之后， 根据配置确定输出的路径和文件名， 把文件写入
+
+```js copy showLineNumbers filename="Complication.js" {22, 38, 49,78, 86}
+const path = require("path");
+const fs = require("fs");
+const types = require("babel-types");
+const parser = require("@babel/parser");
+const { argv0 } = require("process");
+const traverse = require("@babel/traverse").default;
+const generator = require("@babel/generator").default;
+
+function toUnixSeq(filePath) {
+  return filePath.replace(/\\/g, "/");
+}
+class Complication {
+  constructor(options) {
+    this.options = options;
+    this.options.context = this.options.context || toUnixSeq(process.cwd());
+    this.fileDependencies = new Set();
+    this.modules = []; // 存放本次编译的所有产生的代码块
+    this.chunks = []; // 存放所有的代码块
+    this.assets = {}; // 存放输出的文件 key是文件名 值是文件内容
+  }
+  build(onCompiled) {
+    // 5. 根据配置中的entry找到入口文件
+    let entry = {};
+    if (typeof this.options.entry === "string") {
+      entry.main = this.options.entry;
+    } else {
+      entry = this.options.entry;
+    }
+    for (let entryName in entry) {
+      // 获取入口文件的绝对路径
+      let entryFilePath = path.posix.join(
+        this.options.context,
+        entry[entryName]
+      );
+      this.fileDependencies.add(entryFilePath);
+      // 从入口文件出发，开始编译模块
+      let entryModule = this.buildModule(entryName, entryFilePath);
+      // 8. 根据入口和模块之间的依赖关系，组装成一个个包含多个模块的Chunk
+      let chunk = {
+        name: entryName, // 入口的名称
+        entryModule, // 入口的模块
+        modules: this.modules.filter((module) =>
+          module.names.includes(entryName)
+        ), // 入口对应的模块
+      };
+      // 这是个啥玩意？
+      this.chunks.push(chunk);
+    }
+    // 9. 再把每个Chunk转换成一个单独的文件加入到输出列表中
+    this.chunks.forEach((chunk) => {
+      let outputFilename = this.options.output.filename.replace(
+        "[name]",
+        chunk.name
+      );
+      this.assets[outputFilename] = getSourceCode(chunk);
+    });
+    onCompiled(
+      null,
+      {
+        chunks: this.chunks,
+        modules: this.modules,
+        assets: this.assets,
+      },
+      this.fileDependencies
+    );
+  }
+  buildModule(entryName, modulePath) {
+    // 从入口文件出发，调用所有的配置的loader对模块进行转换
+    let rawSourceCode = fs.readFileSync(modulePath, "utf8");
+    // 获取loader的配置规则
+    let { rules } = this.options.module;
+    let loaders = [];
+    rules.forEach((rule) => {
+      if (modulePath.match(rule.test)) {
+        loaders.push(...rule.use);
+      }
+    });
+    //6.从入口文件出发,调用所有配置的Loader对模块进行编译
+    let transformedSourceCode = loaders.reduceRight((sourceCode, loader) => {
+      return require(loader)(sourceCode);
+    }, rawSourceCode);
+    let moduleId = "./" + path.posix.relative(this.options.context, modulePath);
+    let module = { id: moduleId, names: [entryName], dependencies: new Set() };
+    this.modules.push(module);
+    // transformedSourceCode 是个字符串
+    // 7. 找出该模块依赖的模块，再递归本步骤知道所有的入口依赖的文件都经过本步骤的处理
+    let ast = parser.parse(transformedSourceCode, { sourceType: "module" });
+    traverse(ast, {
+      CallExpression: ({ node }) => {
+        // 如果调用的方法名是require的话
+        if (node.callee.name === "require") {
+          // . 代表的是当前模块所在的目录
+          let depModuleName = node.arguments[0].value; // ./title
+          let dirName = path.posix.dirname(modulePath);
+          let depModulePath = path.posix.join(dirName, depModuleName);
+          let { extensions } = this.options.resolve;
+          depModulePath = tryExtensions(depModulePath, extensions);
+          this.fileDependencies.add(depModulePath);
+          // 相对于根目录的相对路径
+          let depModuleId =
+            "./" + path.posix.relative(this.options.context, depModulePath);
+          node.arguments[0] = types.stringLiteral(depModuleId);
+          // 给当前的entry1模块添加依赖信息
+          module.dependencies.add({ depModuleId, depModulePath });
+        }
+      },
+    });
+    const { code } = generator(ast);
+    module._source = code;
+    // 有依赖的话 优化 再进行递归
+    [...module.dependencies].forEach(({ depModuleId, depModulePath }) => {
+      let existModule = this.modules.find((item) => item.id === depModuleId);
+      if (existModule) {
+        existModule.names.push(entryName);
+      } else {
+        let depModule = this.buildModule(entryName, depModulePath);
+        // this.modules.push(depModule);
+      }
+    });
+    return module;
+  }
+}
+
+function tryExtensions(modulePath, extension) {
+  if (fs.existsSync(modulePath)) {
+    return modulePath;
+  }
+  for (let i = 0; i < extension.length; i++) {
+    let filePath = modulePath + extension[i];
+    if (fs.existsSync(filePath)) {
+      return filePath;
+    }
+  }
+  throw new Error("模块没有找到");
+}
+function getSourceCode(chunk) {
+  return `(() => {
+  var webpackModules = {
+    ${chunk.modules
+      .filter((module) => module.id !== chunk.entryModule.id)
+      .map(
+        (module) => `
+        "${module.id}": module => {
+          ${module._source}
+        }`
+      )}
+   
+  };
+  var webpackModuleCache = {};
+  function webpackRequire(moduleId) {
+    var cachedModule = webpackModuleCache[moduleId];
+    if (cachedModule !== undefined) {
+      return cachedModule.exports;
+    }
+    var module = webpackModuleCache[moduleId] = {
+      exports: {}
+    };
+    webpackModules[moduleId](module, module.exports, webpackRequire);
+    return module.exports;
+  }
+  var webpackExports = {};
+  (() => {
+   ${chunk.entryModule._source}
+  })();
+})();`;
+}
+module.exports = Complication;
+```
+
+</Steps>
+
+- `src/entry1.js`
+
+```js
+let title = require("./title");
+console.log("entry1", title);
+```
+
+- `src/entry2.js`
+
+```js
+let title = require("./title");
+console.log("entry2", title);
+```
+
+- `src/title.js`
+
+```js
+module.exports = "title";
+```
+
+- `plugins/DonePlugin.js`
+
+```js
+class DonePlugin {
+  apply(compiler) {
+    compiler.hooks.run.tap("DonePlugin", () => {
+      // console.log("done 结束编译");
+    });
+  }
+}
+module.exports = DonePlugin;
+```
+
+- `plugins/RunPlugin.js`
+
+```js
+class RunPlugin {
+  apply(compiler) {
+    compiler.hooks.run.tap("RunPlugin", () => {
+      // console.log("run 开始编译");
+    });
+  }
+}
+module.exports = RunPlugin;
+```
+
+- `loaders/logger1-loader`
+
+```js
+function loader(source) {
+  // console.log('logger1-loader')
+  return source;
+}
+module.exports = loader;
+```
+
+- `loaders/logger2-loader`
+
+```js
+function loader(source) {
+  // console.log('logger2-loader')
+  return source;
+}
+module.exports = loader;
+```
+
+- `webpack.config.js`
+
+```js
+const path = require("path");
+const RunPlugin = require("./plugins/RunPlugin");
+const DonePlugin = require("./plugins/DonePlugin");
+module.exports = {
+  mode: "development",
+  devtool: false,
+  context: process.cwd(),
+  entry: {
+    entry1: "./src/entry1.js",
+    entry2: "./src/entry2.js",
+  },
+  output: {
+    path: path.resolve("./dist"),
+    filename: "[name].js",
+  },
+  resolve: {
+    // 引入模块的时候不写扩展名 找文件的时候会依次按照扩展名去找文件
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [
+          path.resolve(__dirname, "loaders/logger1-loader.js"),
+          path.resolve(__dirname, "loaders/logger2-loader.js"),
+        ],
+      },
+    ],
+  },
+  plugins: [new RunPlugin(), new DonePlugin()],
+};
+```
