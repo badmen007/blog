@@ -189,7 +189,14 @@ module.exports = loader;
 
 ### 那么 loader 很多的话，loader 是怎么执行的呢？ -> runLoaders
 
-![](src/assets/loader.png)
+import Image from "next/image";
+import loader from "src/assets/loader.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={loader} alt="loader" loader={loaderProp} />;
 
 - `runLoaders`
 

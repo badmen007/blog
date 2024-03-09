@@ -1,8 +1,21 @@
 ## 实现 JSX
 
-![虚拟DOM](src/assets/VDOM.png)
+import Image from "next/image";
+import jsx from "src/assets/jsx.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={jsx} alt="虚拟DOM" loader={loaderProp} />
 
 上面的这个报错 就是提醒你没有`jsx-dev-runtime`
+
+**最终实现的效果是**:
+
+import VDOM from "src/assets/VDOM.png";
+
+<Image src={VDOM} alt="虚拟DOM" loader={loaderProp} />;
 
 - `react/jsx-dev-runtime`
 

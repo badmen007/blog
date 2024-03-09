@@ -8,8 +8,15 @@
 
 ## useLayoutEffect
 
-- useLayoutEffect的执行时机
-- 它的销毁函数是在DOM变更的时候执行的
-- 在DOM变更之后先执行 useLayoutEffect的回调函数，再执行useEffect的销毁函数，然后再执行useEffect的回调函数
+- useLayoutEffect 的执行时机
+- 它的销毁函数是在 DOM 变更的时候执行的
+- 在 DOM 变更之后先执行 useLayoutEffect 的回调函数，再执行 useEffect 的销毁函数，然后再执行 useEffect 的回调函数
 
-![useLayoutEffect](src/assets/useLayoutEffect.png)
+import Image from "next/image";
+import useLayoutEffect from "src/assets/useLayoutEffect.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+}
+
+<Image src={useLayoutEffect} alt="useLayoutEffect" loader={loaderProp} />;

@@ -1,6 +1,13 @@
 ## 创建 RootFiber
 
-![RootFiber](src/assets/RootFiber.png)
+import Image from "next/image";
+import RootFiber from "src/assets/RootFiber.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={RootFiber} alt="RootFiber" loader={loaderProp} />;
 
 - react-reconciler/src/ReactFiberRoot.js
 

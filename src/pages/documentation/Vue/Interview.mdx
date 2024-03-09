@@ -16,7 +16,16 @@ vue 的核心特点是声明式的、组件化。那我们就有必要知道 `�
 
 说起 MVVM 那就不得不想起 MVC。
 
-![Alt text](src/assets/mvc.png)
+import Image from "next/image";
+import mvc from "src/assets/mvc.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={mvc} alt="mvc" loader={loaderProp} />;
+
+- `runLoaders`
 
 - MVC 模式
 
@@ -296,10 +305,12 @@ vue 是基于虚拟 `DOM` 来更新真实 `DOM` 的。`diff` 就是比较两个�
     borderRadius: "9px",
   }}
 >
-  <div>在 vue2 和 vue3 中都不建议v-if和v-for连用。</div> 
-  <div>如果想要实现v-if 和v-for
-  在同一级的效果，先判断再循环，如果条件是数组中的元素的话可以
-  需要借助计算属性先去对遍历的数组进行操作.</div>
+  <div>在 vue2 和 vue3 中都不建议v-if和v-for连用。</div>
+  <div>
+    如果想要实现v-if 和v-for
+    在同一级的效果，先判断再循环，如果条件是数组中的元素的话可以
+    需要借助计算属性先去对遍历的数组进行操作.
+  </div>
 </div>
 
 ## 17.v-once 的使用场景有哪些？

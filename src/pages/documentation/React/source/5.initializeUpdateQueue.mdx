@@ -1,6 +1,13 @@
 ## 初始化 updateQueue
 
-![初始化](src/assets/initupdateQueue.png)
+import Image from "next/image";
+import initupdateQueue from "src/assets/initupdateQueue.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={initupdateQueue} alt="initupdateQueue" loader={loaderProp} />;
 
 - `react-reconciler/src/ReactFiberRoot.js`
 
