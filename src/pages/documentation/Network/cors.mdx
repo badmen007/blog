@@ -1,0 +1,87 @@
+## 什么是跨域
+
+跨域是浏览器安全的一种同源策略
+
+同源策略就是只允许页面请求同一个源(协议、域名、端口)都相同
+
+当页面请求的不是同一个源的话，那么就会发生跨域
+
+- URL 协议不同，就是 HTTP， HTTPS 不同
+- 域名不同。例如www.aa.com，一个是www.bb.com。
+- 网站的端口不同。例如，一个是www.aa.com:4000，一个是www.aa.com:3000。
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <input id="search-input" type="text" placeholder="搜索关键词" />
+    <ul id="suggestion-list"></ul>
+    <script>
+      function jsonp({ url, jsonp, data }) {
+        return new Promise((resolve, reject) => {
+          let callbackName = `jQuery_${Date.now()}`;
+          let script = document.createElement("script");
+          window[callbackName] = function (result) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            resolve(result);
+          };
+          let queryStr = url.indexOf("?") === -1 ? "?" : "&";
+          for (let key in data) {
+            queryStr += `${key}=${data[key]}&`;
+          }
+          script.src = `${url}${queryStr}${jsonp}=${callbackName}`;
+          document.body.appendChild(script);
+        });
+      }
+
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        // 监听输入事件 发起jsonp请求
+        jsonp({
+          url: "http://localhost:4000/sugrec",
+          jsonp: "cb",
+          data: { prod: "pc", wd: e.target.value },
+        }).then((res) => {
+          console.log(res, "res");
+          const suggestions = res.g || [];
+          const suggestionList = document.getElementById("suggestion-list");
+          let html = "";
+          for (let i = 0; i < suggestions.length; i++) {
+            html += `<li>${suggestions[i].q}</li>`;
+          }
+          suggestionList.innerHTML = html;
+        });
+      });
+    </script>
+  </body>
+</html>
+```
+
+- jsonp-server.js
+
+```js
+const express = require("express");
+const app = express();
+
+const port = 4000;
+
+app.get("/sugrec", (req, res) => {
+  const { cb, wd } = req.query;
+  const result = {
+    g: Array.from({ length: 10 }, (_, i) => ({ q: `${wd}${i + 1}` })),
+  };
+  res.type("text/javascript");
+  res.send(`${cb}(${JSON.stringify(result)})`);
+});
+
+app.listen(port, () => {
+  console.log(`server is running on ${port}`);
+});
+```
+
+`jsonp` 是一种跨域的有效的解决方法，通过 `script` 标签来实现的，有一定的安全问题

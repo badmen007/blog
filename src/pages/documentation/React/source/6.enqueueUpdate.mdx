@@ -1,0 +1,136 @@
+## enqueueUpdate
+
+### main.jsx
+
+```js showLineNumbers {8}
+import { createRoot } from "react-dom/client";
+let element = (
+  <h1>
+    hello <span color="red">world</span>
+  </h1>
+);
+const root = createRoot(document.getElementById("root"));
+root.render(element);
+```
+
+### ReactDOMRoot.js
+
+src/react-dom/src/client/ReactDOMRoot.js
+
+```js showLineNumbers {8-13}
+import {
+  createContainer,
+  updateContainer,
+} from "react-reconciler/src/ReactFiberReconciler";
+function ReactDOMRoot(internalRoot) {
+  this._internalRoot = internalRoot;
+}
+
+ReactDOMRoot.prototype.render = function render(children) {
+  const root = this._internalRoot;
+  updateContainer(children, root);
+};
+
+export function createRoot(container) {
+  const root = createContainer(container);
+  return new ReactDOMRoot(root);
+}
+```
+
+### ReactFiberReconciler.js
+
+src/react-reconciler/src/ReactFiberReconciler.js
+
+```js showLineNumbers {7-18}
+import { createFiberRoot } from "./ReactFiberRoot";
+import { createUpdate, enqueueUpdate } from "./ReactFiberClassUpdateQueue";
+export function createContainer(containerInfo) {
+  return createFiberRoot(containerInfo);
+}
+
+/**
+ *
+ * @param {*} element 虚拟DOM
+ * @param {*} container 这个就是根容器 containerInfo,current指向根fiber
+ */
+export function updateContainer(element, container) {
+  const current = container.current;
+  const update = createUpdate();
+  update.payload = { element };
+  const root = enqueueUpdate(current, update);
+  console.log(root, "root");
+}
+```
+
+### ReactFiberClassUpdateQueue.js
+
+- 将每一个需要更新的放到队列的链表上，最开始是自己指向自己
+
+import Image from "next/image";
+import enqueue from "src/assets/enqueue.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={enqueue} alt="enqueue" loader={loaderProp} />
+
+`src/react-reconciler/src/ReactFiberClassUpdateQueue.js`
+
+```js showLineNumbers {12-34}
+import { markUpdateLaneFromFiberToRoot } from "./ReactFiberConcurrentUpdates";
+export const UpdateState = 0;
+export function initializeUpdateQueue(fiber) {
+  const queue = {
+    shared: {
+      pending: null,
+    },
+  };
+  fiber.updateQueue = queue;
+}
+
+export function createUpdate() {
+  const update = { tag: UpdateState, next: null };
+  return update;
+}
+
+/**
+ *
+ * @param {*} fiber 根fiber
+ * @param {*} update { tag: UpdateState, payload: { element }}
+ */
+export function enqueueUpdate(fiber, update) {
+  const updateQueue = fiber.updateQueue;
+  const sharedQueue = updateQueue.shared;
+  const pending = sharedQueue.pending;
+  if (pending == null) {
+    update.next = update;
+  } else {
+    update.next = pending.next;
+    pending.next = update;
+  }
+  sharedQueue.pending = update;
+  return markUpdateLaneFromFiberToRoot(fiber);
+}
+```
+
+### ReactFiberConcurrentUpdates.js
+
+src/react-reconciler/src/ReactFiberConcurrentUpdates.js
+
+```js showLineNumbers
+import { HostRoot } from "./ReactWorkTags";
+export function markUpdateLaneFromFiberToRoot(sourceFiber) {
+  let node = sourceFiber;
+  let parent = sourceFiber.return;
+  while (parent !== null) {
+    node = parent;
+    parent = parent.return;
+  }
+  if (node.tag === HostRoot) {
+    const root = node.stateNode;
+    return root;
+  }
+  return null;
+}
+```

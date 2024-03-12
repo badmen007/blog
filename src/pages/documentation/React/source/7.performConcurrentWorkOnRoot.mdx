@@ -1,0 +1,64 @@
+## performConcurrentWorkOnRoot
+
+### ReactFiberReconciler.js
+
+src/react-reconciler/src/ReactFiberReconciler.js
+
+```js showLineNumbers {3, 18}
+import { createFiberRoot } from "./ReactFiberRoot";
+import { createUpdate, enqueueUpdate } from "./ReactFiberClassUpdateQueue";
+import { scheduleUpdateOnFiber } from "./ReactFiberWorkLoop";
+export function createContainer(containerInfo) {
+  return createFiberRoot(containerInfo);
+}
+
+/**
+ *
+ * @param {*} element 虚拟DOM
+ * @param {*} container 这个就是根容器 containerInfo,current指向根fiber
+ */
+export function updateContainer(element, container) {
+  const current = container.current;
+  const update = createUpdate();
+  update.payload = { element };
+  const root = enqueueUpdate(current, update);
+  scheduleUpdateOnFiber(root);
+}
+```
+
+### ReactFiberWorkLoop.js
+
+src/react-reconciler/src/ReactFiberWorkLoop.js
+
+```js
+import { scheduleCallback } from "scheduler";
+export function scheduleUpdateOnFiber(root) {
+  ensureRootIsScheduled(root);
+}
+
+function ensureRootIsScheduled(root) {
+  scheduleCallback(performConcurrentWorkOnRoot.bind(null, root));
+}
+
+function performConcurrentWorkOnRoot(root) {
+  console.log("performConcurrentWorkOnRoot");
+}
+```
+
+### scheduler\index.js
+
+src/scheduler/index.js
+
+```js
+export * from "./src/forks/Scheduler";
+```
+
+### Scheduler.js
+
+src/scheduler/src/forks/Scheduler.js
+
+```js
+export function scheduleCallback(callback) {
+  requestIdleCallback(callback);
+}
+```
