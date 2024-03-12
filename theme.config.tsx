@@ -36,6 +36,12 @@ const config: DocsThemeConfig = {
     <div>Last updated at {new Date(date.timestamp).toLocaleDateString()}</div>
   ),
   navbar: {},
+  editLink: {
+    text: null,
+  },
+  feedback: {
+    content: null,
+  },
 };
 
 export default config;
