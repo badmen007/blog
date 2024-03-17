@@ -1,0 +1,163 @@
+## mountReducer
+
+### main.jsx
+
+src/main.jsx
+
+```js showLineNumbers {1, 4-7, 10-11}
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+
+function reducer(state, action) {
+  if (action.type === "add") return state + 1;
+  return state;
+}
+
+function FunctionComponent() {
+  const [number, setNumber] = React.useReducer(reducer, 0);
+  return <button onClick={() => setNumber({ type: "add" })}>{number}</button>;
+}
+let element = <FunctionComponent />;
+const root = createRoot(document.getElementById("root"));
+root.render(element);
+```
+
+### index.js
+
+src/react/index.js
+
+```js
+export {
+  __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,
+  useReducer,
+} from "./src/React";
+```
+
+### React.js
+
+src/react/src/React.js
+
+```js
+import { useReducer } from "./ReactHooks";
+import ReactSharedInternals from "./ReactSharedInternals";
+
+export {
+  useReducer,
+  ReactSharedInternals as __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,
+};
+```
+
+### ReactHooks.js
+
+src/react/src/ReactHooks.js
+
+```js
+import ReactCurrentDispatcher from "./ReactCurrentDispatcher";
+
+function resolveDispatcher() {
+  const dispatcher = ReactCurrentDispatcher.current;
+  return dispatcher;
+}
+
+export function useReducer(reducer, initialArg, init) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useReducer(reducer, initialArg, init);
+}
+```
+
+### ReactSharedInternals.js
+
+src/react/src/ReactSharedInternals.js
+
+```js
+import ReactCurrentDispatcher from "./ReactCurrentDispatcher";
+
+const ReactSharedInternals = {
+  ReactCurrentDispatcher,
+};
+export default ReactSharedInternals;
+```
+
+### ReactCurrentDispatcher.js
+
+src/react/src/ReactCurrentDispatcher.js
+
+```js
+const ReactCurrentDispatcher = {
+  current: null,
+};
+export default ReactCurrentDispatcher;
+```
+
+### ReactSharedInternals.js
+
+src/shared/ReactSharedInternals.js
+
+```js
+import * as React from "react";
+
+const ReactSharedInternals =
+  React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+export default ReactSharedInternals;
+```
+
+### ReactFiberHooks.js
+
+src/react-reconciler/src/ReactFiberHooks.js
+
+```js showLineNumbers {1-43,46-50, 52}
+import ReactSharedInternals from "shared/ReactSharedInternals";
+
+const { ReactCurrentDispatcher } = ReactSharedInternals;
+let currentlyRenderingFiber = null;
+let workInProgressHook = null;
+
+function mountWorkInProgressHook() {
+  const hook = {
+    memoizedState: null,
+    queue: null,
+    next: null,
+  };
+  if (workInProgressHook === null) {
+    currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
+  } else {
+    workInProgressHook = workInProgressHook.next = hook;
+  }
+  return workInProgressHook;
+}
+
+const HooksDispatcherOnMountInDEV = {
+  useReducer: mountReducer,
+};
+
+function dispatchReducerAction(fiber, queue, action) {
+  console.log("dispatchReducerAction", action);
+}
+
+function mountReducer(reducer, initialArg) {
+  const hook = mountWorkInProgressHook();
+  hook.memoizedState = initialArg;
+  const queue = {
+    pending: null,
+    dispatch: null,
+  };
+  hook.queue = queue;
+  const dispatch = (queue.dispatch = dispatchReducerAction.bind(
+    null,
+    currentlyRenderingFiber,
+    queue
+  ));
+  return [hook.memoizedState, dispatch];
+}
+
+export function renderWithHooks(current, workInProgress, Component, props) {
+  currentlyRenderingFiber = workInProgress;
+  if (current !== null && current.memoizedState !== null) {
+  } else {
+    ReactCurrentDispatcher.current = HooksDispatcherOnMountInDEV;
+  }
+  const children = Component(props);
+  currentlyRenderingFiber = null;
+  return children;
+}
+```

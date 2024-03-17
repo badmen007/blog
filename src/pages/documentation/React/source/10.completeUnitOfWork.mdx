@@ -1,0 +1,266 @@
+## completeUnitOfWork
+
+import Image from "next/image";
+import completeUnitOfWork from "src/assets/completeUnitOfWork.png";
+
+export const loaderProp = ({ src }) => {
+  return src;
+};
+
+<Image src={completeUnitOfWork} alt="completeUnitOfWork" loader={loaderProp} />
+
+### ReactFiberWorkLoop
+
+src/react-reconciler/src/ReactFiberWorkLoop.js
+
+```js showLineNumbers {4,40,46-60}
+import { scheduleCallback } from "scheduler";
+import { createWorkInProgress } from "./ReactFiber";
+import { beginWork } from "./ReactFiberBeginWork";
+import { completeWork } from "./ReactFiberCompleteWork";
+let workInProgress = null;
+export function scheduleUpdateOnFiber(root) {
+  ensureRootIsScheduled(root);
+}
+
+function ensureRootIsScheduled(root) {
+  scheduleCallback(performConcurrentWorkOnRoot.bind(null, root));
+}
+
+function performConcurrentWorkOnRoot(root) {
+  renderRootSync(root);
+  workLoopSync();
+}
+
+function prepareFreshStack(root) {
+  workInProgress = createWorkInProgress(root.current, null);
+  console.log(root, "root");
+}
+
+function renderRootSync(root) {
+  prepareFreshStack(root);
+}
+
+function workLoopSync() {
+  while (workInProgress !== null) {
+    performUnitOfWork(workInProgress);
+  }
+}
+
+function performUnitOfWork(unitOfWork) {
+  const current = unitOfWork.alternate;
+  const next = beginWork(current, unitOfWork);
+  unitOfWork.memoizedProps = unitOfWork.pendingProps;
+  if (next === null) {
+    // 到这里就说明是fiber构建完成了
+    completeUnitOfWork(unitOfWork);
+  } else {
+    workInProgress = next;
+  }
+}
+
+function completeUnitOfWork(unitOfWork) {
+  let completedWork = unitOfWork;
+  do {
+    const current = completedWork.alternate;
+    const returnFiber = completedWork.return;
+    completeWork(current, completedWork);
+    const siblingFiber = completedWork.sibling;
+    if (siblingFiber !== null) {
+      workInProgress = siblingFiber;
+      return;
+    }
+    completedWork = returnFiber;
+    workInProgress = completedWork;
+  } while (workInProgress !== null);
+}
+```
+
+### ReactFiberCompleteWork.js
+
+src/react-reconciler/src/ReactFiberCompleteWork.js
+
+```js
+import {
+  createInstance,
+  createTextInstance,
+  finalizeInitialChildren,
+  appendInitialChild,
+} from "react-dom-bindings/src/client/ReactDOMHostConfig";
+import { HostComponent, HostRoot, HostText } from "./ReactWorkTags";
+import { NoFlags } from "./ReactFiberFlags";
+import logger, { indent } from "shared/logger";
+
+function bubbleProperties(completedWork) {
+  let subtreeFlags = NoFlags;
+  let child = completedWork.child;
+  while (child !== null) {
+    subtreeFlags |= child.subtreeFlags;
+    subtreeFlags |= child.flags;
+    child = child.sibling;
+  }
+  completedWork.subtreeFlags |= subtreeFlags;
+}
+
+function appendAllChildren(parent, workInProgress) {
+  // 我们只有创建的顶级fiber，但需要递归其子节点来查找所有终端节点
+  let node = workInProgress.child;
+  while (node !== null) {
+    // 如果是原生节点，直接添加到父节点上
+    if (node.tag === HostComponent || node.tag === HostText) {
+      appendInitialChild(parent, node.stateNode);
+      // 再看看第一个节节点是不是原生节点
+    } else if (node.child !== null) {
+      // node.child.return = node
+      node = node.child;
+      continue;
+    }
+    if (node === workInProgress) {
+      return;
+    }
+    // 如果没有弟弟就找父亲的弟弟
+    while (node.sibling === null) {
+      // 如果找到了根节点或者回到了原节点结束
+      if (node.return === null || node.return === workInProgress) {
+        return;
+      }
+      node = node.return;
+    }
+    // node.sibling.return = node.return
+    // 下一个弟弟节点
+    node = node.sibling;
+  }
+}
+
+export function completeWork(current, workInProgress) {
+  logger(" ".repeat(indent.number) + "completeWork", workInProgress);
+  const newProps = workInProgress.pendingProps;
+  switch (workInProgress.tag) {
+    case HostComponent: {
+      // 这个type指的是标签名
+      const { type } = workInProgress;
+      const instance = createInstance(type, newProps, workInProgress);
+      appendAllChildren(instance, workInProgress);
+      workInProgress.stateNode = instance;
+      // 给真实DOM添加属性
+      finalizeInitialChildren(instance, type, newProps);
+      bubbleProperties(workInProgress);
+    }
+    case HostRoot:
+      bubbleProperties(workInProgress);
+      break;
+    case HostText: {
+      const newText = newProps;
+      workInProgress.stateNode = createTextInstance(newText);
+      bubbleProperties(workInProgress);
+      break;
+    }
+    default:
+      break;
+  }
+}
+```
+
+### ReactDOMHostConfig.js
+
+src/react-dom-bindings/src/client/ReactDOMHostConfig.js
+
+```js showLineNumbers {1, 8-21}
+import { setInitialProperties } from "./ReactDOMComponent";
+export function shouldSetTextContent(type, props) {
+  return (
+    typeof props.children === "string" || typeof props.children === "number"
+  );
+}
+
+export const appendInitialChild = (parent, child) => {
+  parent.appendChild(child);
+};
+
+export const createInstance = (type, props, internalInstanceHandle) => {
+  const domElement = document.createElement(type);
+  return domElement;
+};
+
+export const createTextInstance = (content) => document.createTextNode(content);
+
+export function finalizeInitialChildren(domElement, type, props) {
+  setInitialProperties(domElement, type, props);
+}
+```
+
+### ReactDOMComponent.js
+
+src/react-dom-bindings/src/client/ReactDOMHostConfig.js
+
+```js
+import { setValueForStyles } from "./CSSPropertyOperations";
+import setTextContent from "./setTextContent";
+import { setValueForProperty } from "./DOMPropertyOperations";
+const CHILDREN = "children";
+const STYLE = "style";
+function setInitialDOMProperties(tag, domElement, nextProps) {
+  for (const propKey in nextProps) {
+    if (nextProps.hasOwnProperty(propKey)) {
+      const nextProp = nextProps[propKey];
+      if (propKey === STYLE) {
+        setValueForStyles(domElement, nextProp);
+      } else if (propKey === CHILDREN) {
+        if (typeof nextProp === "string") {
+          setTextContent(domElement, nextProp);
+        } else if (typeof nextProp === "number") {
+          setTextContent(domElement, `${nextProp}`);
+        }
+      } else if (nextProp != null) {
+        setValueForProperty(domElement, propKey, nextProp);
+      }
+    }
+  }
+}
+
+export function setInitialProperties(domElement, tag, props) {
+  setInitialDOMProperties(tag, domElement, props);
+}
+```
+
+### CSSPropertyOperations.js
+
+src/react-dom-bindings/src/client/CSSPropertyOperations.js
+
+```js
+export function setValueForStyles(node, styles) {
+  const { style } = node;
+  for (const styleName in styles) {
+    if (styles.hasOwnProperty(styleName)) {
+      const styleValue = styles[styleName];
+      style[styleName] = styleValue;
+    }
+  }
+}
+```
+
+### setTextContent.js
+
+src/react-dom-bindings/src/client/setTextContent.js
+
+```js
+function setTextContent(node, text) {
+  node.textContent = text;
+}
+
+export default setTextContent;
+```
+
+### DOMPropertyOperations.js
+
+src/react-dom-bindings/src/client/DOMPropertyOperations.js
+
+```js
+export function setValueForProperty(node, name, value) {
+  if (value === null) {
+    node.removeAttribute(name);
+  } else {
+    node.setAttribute(name, value);
+  }
+}
+```

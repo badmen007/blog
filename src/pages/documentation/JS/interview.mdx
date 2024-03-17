@@ -171,6 +171,118 @@ setTimeout(() => {
 console.log(7);
 ```
 
-### 
+### flatternArray
 
-## 事件循环
+```js
+//数组拍平 flatternArray(arr,count)
+
+function flatternArry(arr, count) {
+  if (count == 0) {
+    return arr;
+  }
+
+  let flattened = [];
+  for (const item of arr) {
+    if (Array.isArray(item)) {
+      flattened.push(...flatternArry(item, count - 1));
+    } else {
+      flattened.push(item);
+    }
+  }
+  return flattened;
+}
+
+flatternArray([1, 2, 3, [4, 5]], 1); //[1,2,3,4,5]
+
+flatternArray([1, 2, 3, [4, [5]]], 1); //[1,2,3,4,[5]]
+```
+
+### 实现一个 get 方法
+
+```js
+function get(obj, path) {
+  const keys = path.split(".");
+  let value = obj;
+  for (const key of keys) {
+    if (!value || typeof value !== "object") {
+      return undefined;
+    }
+    value = obj[key];
+  }
+}
+
+var obj = { a: { b: { c: 2 } } };
+console.log(get(obj, "a.b.c")); // 输出 2
+```
+
+## 平分数组
+
+```js
+function fn(arr, num) {
+  const help = [];
+  for (let i = 0; i < arr.length; i += num) {
+    help.push(arr.slice(i, i + num));
+  }
+  return help;
+}
+const result = fn([1, 2, 3, 4, 5], 2); //结果为[[1,2],[3,4],[5]]
+console.log(result);
+```
+
+## lastPromise
+
+- 问题
+
+```js
+//实现 lastPromise，连续请求只有最后一次输出
+
+let lastFn = lastPromise(promiseFn); //promiseFn 是一个普通的异步函数，返回一个 Promise
+
+lastFn().then(); //无输出
+
+lastFn().then(); //无输出
+
+lastFn().then(); //有输出
+```
+
+- 实现
+
+```js
+function lastPromise(fn) {
+  let timer;
+  let lastPromise;
+
+  return function (...args) {
+    if (timer) {
+      clearTimeout(timer);
+    }
+
+    return new Promise((resolve, reject) => {
+      // 可以实现一个Promise.cancel  this.executor = () => {}
+      timer = setTimeout(() => {
+        fn().then(resolve).catch(reject);
+      });
+    });
+  };
+}
+
+function promiseFn() {
+  return new Promise((resolve, reject) => {
+    resolve("结果");
+  });
+}
+
+let lastFn = lastPromise(promiseFn); // promiseFn 普通的异步函数  返回一个Promise
+
+lastFn().then((result) => {
+  console.log(result);
+});
+
+lastFn().then((result) => {
+  console.log(result);
+});
+
+lastFn().then((result) => {
+  console.log(result, "3");
+});
+```

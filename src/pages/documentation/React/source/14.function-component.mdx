@@ -1,0 +1,246 @@
+## FunctionComponent
+
+### main.jsx
+
+src/main.jsx
+
+```js showLineNumbers {3-10}
+import { createRoot } from "react-dom/client";
+
+function FunctionComponent() {
+  return (
+    <h1>
+      hello <span style={{ color: "red" }}>world</span>
+    </h1>
+  );
+}
+let element = <FunctionComponent />;
+const root = createRoot(document.getElementById("root"));
+root.render(element);
+```
+
+### ReactBeginWork.js
+
+src/react-reconciler/src/ReactFiberBeginWork.js
+
+```js showLineNumbers {48-54, 59-65}
+import {
+  HostRoot,
+  HostComponent,
+  HostText,
+  IndeterminateComponent,
+  FunctionComponent,
+} from "./ReactWorkTags";
+import { processUpdateQueue } from "./ReactFiberClassUpdateQueue";
+import { mountChildFibers, reconcileChildFibers } from "./ReactChildFiber";
+import { shouldSetTextContent } from "react-dom-bindings/src/client/ReactDOMHostConfig";
+import logger, { indent } from "shared/logger";
+import { renderWithHooks } from "react-reconciler/src/ReactFiberHooks";
+
+function reconcileChildren(current, workInProgress, nextChildren) {
+  if (current === null) {
+    // 说明没有当前元素是第一次挂载的 没有alternate
+    workInProgress.child = mountChildFibers(workInProgress, null, nextChildren);
+  } else {
+    workInProgress.child = reconcileChildFibers(
+      workInProgress,
+      current.child,
+      nextChildren
+    );
+  }
+}
+
+function updateHostRoot(current, workInProgress) {
+  processUpdateQueue(workInProgress);
+  // 拿到已经更新好的
+  const nextState = workInProgress.memoizedState;
+  const nextChildren = nextState.element;
+  reconcileChildren(current, workInProgress, nextChildren);
+  return workInProgress.child;
+}
+
+function updateHostComponent(current, workInProgress) {
+  const { type } = workInProgress;
+  const nextProps = workInProgress.pendingProps;
+  let nextChildren = nextProps.children;
+  const isDirectTextChild = shouldSetTextContent(type, nextProps);
+  if (isDirectTextChild) {
+    nextChildren = null;
+  }
+  reconcileChildren(current, workInProgress, nextChildren);
+  return workInProgress.child;
+}
+
+function mountIndeterminateComponent(current, workInProgress, Component) {
+  const props = workInProgress.pendingProps;
+  const value = renderWithHooks(current, workInProgress, Component, props);
+  workInProgress.tag = FunctionComponent;
+  reconcileChildren(current, workInProgress, value);
+  return workInProgress.child;
+}
+
+export function beginWork(current, workInProgress) {
+  logger(" ".repeat(indent.number) + "beginWork", workInProgress);
+  switch (workInProgress.tag) {
+    case IndeterminateComponent: {
+      return mountIndeterminateComponent(
+        current,
+        workInProgress,
+        workInProgress.type
+      );
+    }
+    case HostRoot:
+      return updateHostRoot(current, workInProgress);
+    case HostComponent:
+      return updateHostComponent(current, workInProgress);
+    case HostText:
+    default:
+      return null;
+  }
+}
+```
+
+### ReactFiberHooks.js
+
+src/react-reconciler/src/ReactFiberHooks.js
+
+```js
+export function renderWithHooks(current, workInProgress, Component, props) {
+  const children = Component(props);
+  return children;
+}
+```
+
+### ReactFiberCommitWork.js
+
+- 错误修复
+
+```js showLineNumbers {51-52,54}
+import {
+  insertBefore,
+  appendChild,
+} from "react-dom-bindings/src/client/ReactDOMHostConfig";
+import { MutationMask, Placement } from "./ReactFiberFlags";
+import {
+  FunctionComponent,
+  HostComponent,
+  HostRoot,
+  HostText,
+} from "./ReactWorkTags";
+
+function recursivelyTraverseMutationEffects(root, parentFiber) {
+  if (parentFiber.subtreeFlags & MutationMask) {
+    let { child } = parentFiber;
+    while (child !== null) {
+      commitMutationEffectsOnFiber(child, root);
+      child = child.sibling;
+    }
+  }
+}
+
+function isHostParent(fiber) {
+  return fiber.tag === HostComponent || fiber.tag === HostRoot;
+}
+
+function getHostParentFiber(fiber) {
+  let parent = fiber.return;
+  while (parent !== null) {
+    if (isHostParent(parent)) {
+      return parent;
+    }
+    parent = parent.return;
+  }
+  return parent;
+}
+
+function insertOrAppendPlacementNode(node, before, parent) {
+  const { tag } = node;
+  const isHost = tag === HostComponent || tag === HostText;
+  if (isHost) {
+    const { stateNode } = node;
+    if (before) {
+      insertBefore(parent, stateNode, before);
+    } else {
+      appendChild(parent, stateNode);
+    }
+  } else {
+    const { child } = node;
+    if (child !== null) {
+      insertOrAppendPlacementNode(child, before, parent);
+      let { sibling } = child;
+      while (sibling !== null) {
+        insertOrAppendPlacementNode(sibling, before, parent);
+        sibling = sibling.sibling;
+      }
+    }
+  }
+}
+
+function getHostSibling(fiber) {
+  let node = fiber;
+  siblings: while (true) {
+    // 这个就是找到有兄弟的节点
+    while (node.sibling == null) {
+      if (node.return == null || isHostParent(node.return)) {
+        return null;
+      }
+      node = node.return;
+    }
+    node = node.sibling;
+    //
+    while (node.tag !== HostComponent && node.tag !== HostText) {
+      if (node.flags & Placement) {
+        continue siblings;
+      } else {
+        node = node.child;
+      }
+    }
+    if (!(node.flags & Placement)) {
+      return node.stateNode;
+    }
+  }
+}
+
+function commitPlacement(finishedWork) {
+  const parentFiber = getHostParentFiber(finishedWork);
+  switch (parentFiber.tag) {
+    case HostComponent: {
+      const parent = parentFiber.stateNode;
+      const before = getHostSibling(finishedWork);
+      insertOrAppendPlacementNode(finishedWork, before, parent);
+      break;
+    }
+    case HostRoot: {
+      const parent = parentFiber.stateNode.containerInfo;
+      const before = getHostSibling(finishedWork);
+      insertOrAppendPlacementNode(finishedWork, before, parent);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+function commitReconciliationEffects(finishedWork) {
+  const { flags } = finishedWork;
+  if (flags & Placement) {
+    commitPlacement(finishedWork);
+    finishedWork.flags &= ~Placement;
+  }
+}
+
+export function commitMutationEffectsOnFiber(finishedWork, root) {
+  switch (finishedWork.tag) {
+    case HostRoot:
+    case HostComponent:
+    case FunctionComponent:
+    case HostText: {
+      recursivelyTraverseMutationEffects(root, finishedWork);
+      commitReconciliationEffects(finishedWork);
+      break;
+    }
+    default:
+      break;
+  }
+}
+```

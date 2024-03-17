@@ -1,0 +1,692 @@
+# vue3-auth
+
+## 初始化项目
+
+```bash
+pnpm create vite vue3-auth --template vue-ts
+cd vue3-auth
+pnpm install
+pnpm dev
+pnpm i vue-router pinia element-plus axios sass @element-plus/icons-vue path-browserify
+pnpm i @types/node -D
+```
+
+## 配置路径别名
+
+**vite.config.js**
+
+```js showLineNumbers {3, 8-15}
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import path from "path-browserify";
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: [
+      {
+        find: "@",
+        replacement: path.resolve(__dirname, "src"),
+      },
+    ],
+  },
+});
+```
+
+**tsconfig.js**
+
+```json showLineNumbers {23-26}
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
+```
+
+## 集成 vue-router
+
+### 在 src 目录下创建 router 文件夹, 添加 index.ts 文件
+
+```js
+import { createRouter, createWebHistory } from "vue-router";
+
+const routes = [
+  {
+    path: "/home",
+    component: () => import("@/views/Home/index.vue"),
+  },
+  {
+    path: "/about",
+    component: () => import("@/views/About/index.vue"),
+  },
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+});
+
+export default router;
+```
+
+### 在 App 中添加 router-view 和 router-link
+
+```js
+<template>
+  <router-link to="/home">Home</router-link>
+  <router-link to="/about">About</router-link>
+  <router-view></router-view>
+</template>
+```
+
+### 在 main.js 中引入 router
+
+```js
+import { createApp } from "vue";
+import App from "./App.vue";
+import router from "@/router";
+
+const app = createApp(App);
+app.use(router);
+app.mount("#app");
+```
+
+## 集成 pinia
+
+### 在 src 目录下创建 stores 目录 创建 counter.ts
+
+```js
+import { defineStore } from "pinia";
+import { ref } from "vue";
+
+export const useCounterStore = defineStore("counter", () => {
+  const count = ref(0);
+  const increment = () => {
+    count.value++;
+  };
+  return { count, increment };
+});
+```
+
+### 在 main 中注册
+
+```js showLineNumbers {4,8}
+import { createApp } from "vue";
+import App from "./App.vue";
+import router from "@/router";
+import { createPinia } from "pinia";
+
+const app = createApp(App);
+app.use(router);
+app.use(createPinia());
+app.mount("#app");
+```
+
+### 在 App 中添加测试代码
+
+```js showLineNumbers {5, 9-10}
+<template>
+  <router-link to="/home">Home</router-link>
+  <router-link to="/about">About</router-link>
+  <router-view></router-view>
+  <button @click="counter.increment">{{ counter.count }}</button>
+</template>
+
+<script setup lang="ts">
+import { useCounterStore } from "@/stores/counter";
+const counter = useCounterStore();
+</script>
+
+```
+
+## 集成 ElementPlus
+
+这里就不做动态导入了
+
+```js showLineNumbers {5-6, 11}
+import { createApp } from "vue";
+import App from "./App.vue";
+import router from "@/router";
+import { createPinia } from "pinia";
+import ElementPlus from "element-plus";
+import "element-plus/dist/index.css";
+
+const app = createApp(App);
+app.use(router);
+app.use(createPinia());
+app.use(ElementPlus);
+app.mount("#app");
+```
+
+## Layout 组件
+
+```js
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container">sidebar-container</div>
+    <div class="main-container">
+      <router-view></router-view>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts"></script>
+
+<style lang="scss" scoped>
+.app-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  .sidebar-container {
+    width: 210px;
+    background-color: skyblue;
+  }
+  .main-container {
+    flex: 1;
+    background-color: green;
+  }
+}
+</style>
+
+```
+
+### permission.ts
+
+src/permission.ts
+
+```js
+import router from "@/router";
+import { getToken } from "./utils/auth";
+import { useUserStore } from "./stores/user";
+import { usePermissionStore } from "./stores/permission";
+const WHITE_LIST = ["/login"];
+
+router.beforeEach(async (to) => {
+  const token = getToken();
+  const userStore = useUserStore();
+  const permissionStore = usePermissionStore();
+  if (token) {
+    if (to.path == "/login") {
+      return {
+        path: "/",
+        replace: true,
+      };
+    }
+
+    const roles = userStore.state.userInfo;
+    if (roles) {
+      return true;
+    }
+    await userStore.getUserInfo();
+    const accessRoutes = await permissionStore.generateRoutes();
+    accessRoutes.forEach(router.addRoute);
+    return router.push(to.path);
+  }
+  if (WHITE_LIST.includes(to.path)) {
+    return true;
+  }
+  return {
+    path: "/login",
+    query: {
+      redirect: to.path,
+      ...to.query,
+    },
+  };
+});
+```
+
+### main.ts
+
+```js
+import { createApp } from "vue";
+import router from "@/router";
+import { createPinia } from "pinia";
+import ElementPlus from "element-plus";
+import "element-plus/dist/index.css";
+import App from "./App.vue";
+import "./permission";
+import * as Icons from "@element-plus/icons-vue";
+
+const app = createApp(App);
+console.log(`output->Icons`, Icons);
+for (const [key, component] of Object.entries(Icons)) {
+  app.component(key, component);
+}
+
+app.use(router);
+app.use(createPinia());
+app.use(ElementPlus);
+app.mount("#app");
+```
+
+### hooks/useRouteQuery.js
+
+```js
+import { ref, computed, watchEffect } from "vue";
+import { useRoute } from "vue-router";
+const useRouteQuery = () => {
+  const route = useRoute();
+  const redirect = ref(""); //重定向的路径 也就是原来想访问的路径
+  const otherQuery = ref({}); //其它的查询参数
+  const getOtherQuery = (query) => {
+    const { redirect, ...other } = query; //查询参数对象
+    return other;
+  };
+  const redirectComputed = computed(() => route.query.redirect || "");
+  const otherQueryComputed = computed(() => getOtherQuery(route.query));
+  watchEffect(() => {
+    otherQuery.value = otherQueryComputed.value;
+    redirect.value = redirectComputed.value as string;
+  });
+  return {
+    redirect,
+    otherQuery,
+  };
+};
+export default useRouteQuery;
+
+```
+
+### layout/index.vue
+
+```js
+<template>
+  <div class="app-wrapper">
+    <div class="sidebar-container"><sidebar> </sidebar></div>
+    <div class="main-container">
+      <router-view></router-view>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import Sidebar from "./Sidebar/index.vue";
+</script>
+
+<style lang="scss" scoped>
+.app-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  .sidebar-container {
+    width: 210px;
+    background-color: skyblue;
+  }
+  .main-container {
+    flex: 1;
+    background-color: green;
+  }
+}
+</style>
+
+```
+
+### layout/Sidebar/index.vue
+
+```ts
+<template>
+  <el-menu mode="vertical">
+    <sidebar-item v-for="menu in menus" :key="menu.path" :item="menu">
+    </sidebar-item>
+  </el-menu>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import { useMenuStore } from "@/stores/menu";
+import SidebarItem from "./SidebarItem.vue";
+
+const menuStore = useMenuStore();
+const menus = computed(() => menuStore.state.authMenus);
+console.log(`output->menus`,menus)
+</script>
+
+```
+
+### layout/Sidebar/SidebarItem.vue
+
+```ts
+<template>
+  <router-link
+    :to="item.path"
+    v-if="!item.children || item.children.length == 0"
+  >
+    <el-menu-item :index="item.path">
+      <el-icon v-if="item.icon">
+        <component :is="item.icon"></component>
+      </el-icon>
+      <template #title>
+        <span>{{ item.title }}</span>
+      </template>
+    </el-menu-item>
+  </router-link>
+  <el-sub-menu v-else :index="item.path" teleported>
+    <template #title>
+      <el-icon v-if="item.icon">
+        <component :is="item.icon"></component>
+      </el-icon>
+      <span>{{ item.title }}</span>
+    </template>
+    <sidebar-item
+      v-for="child in item.children"
+      :key="child.path"
+      :is-nest="true"
+      :item="child"
+    >
+    </sidebar-item>
+  </el-sub-menu>
+</template>
+
+<script setup lang="ts">
+defineProps({
+  item: {
+    type: Object,
+    required: true,
+  },
+});
+</script>
+
+```
+
+### router/index.ts
+
+```ts
+import { RouteRecordRaw, createRouter, createWebHistory } from "vue-router";
+import Layout from "@/layout/index.vue";
+
+const routes: Array<RouteRecordRaw> = [
+  {
+    path: "/",
+    redirect: "/home",
+  },
+  {
+    path: "/login",
+    component: () => import("@/views/Login/index.vue"),
+  },
+];
+export const dynamicRoutes: Array<RouteRecordRaw> = [
+  {
+    path: "/",
+    component: Layout,
+    children: [
+      {
+        path: "home",
+        component: () => import("@/views/Home/index.vue"),
+      },
+      {
+        path: "system",
+        children: [
+          {
+            path: "menu",
+            component: () => import("@/views/Menu/index.vue"),
+          },
+          {
+            path: "role",
+            component: () => import("@/views/Role/index.vue"),
+          },
+          {
+            path: "user",
+            component: () => import("@/views/User/index.vue"),
+          },
+        ],
+      },
+    ],
+  },
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+});
+
+export default router;
+```
+
+### stores/menu.ts
+
+```ts
+import { getRoleAccesses } from "@/api/roleAccess";
+import { defineStore } from "pinia";
+import { reactive } from "vue";
+import generateMenuTree from "@/utils/generateMenuTree";
+
+export const useMenuStore = defineStore("menu", () => {
+  const state = reactive({
+    authMenus: [],
+  });
+  const getAccessByRoles = async (roles) => {
+    const response = await getRoleAccesses(roles);
+    const { access } = response.data;
+    state.authMenus = generateMenuTree(access);
+    return access;
+  };
+  return {
+    state,
+    getAccessByRoles,
+  };
+});
+```
+
+### stores/permission.ts
+
+```ts
+import { defineStore } from "pinia";
+import { computed, reactive } from "vue";
+import { useUserStore } from "./user";
+import { useMenuStore } from "./menu";
+import { dynamicRoutes } from "@/router";
+import path from "path-browserify";
+
+function generateRoutes(menuPaths, routes, basePath = "/") {
+  const routerData = [];
+  routes.forEach((route) => {
+    const routeFullPath = path.resolve(basePath, route.path);
+    if (route.children) {
+      route.children = generateRoutes(menuPaths, route.children, routeFullPath);
+    }
+    if (
+      menuPaths.includes(routeFullPath) ||
+      (route.children && route.children.length >= 1)
+    ) {
+      routerData.push(route);
+    }
+  });
+  return routerData;
+}
+
+function filterDynamicRoutes(menus, routes) {
+  const menuPaths = menus.map((menu) => menu.path);
+  return generateRoutes(menuPaths, routes);
+}
+
+export const usePermissionStore = defineStore("permission", () => {
+  const state = reactive({
+    accessRoutes: [],
+  });
+  const userStore = useUserStore();
+  const menuStore = useMenuStore();
+  const generateRoutes = async () => {
+    const roleIds = computed(() =>
+      userStore.state.roles.map((role) => role.id)
+    );
+    const menus = await menuStore.getAccessByRoles(roleIds.value);
+    return filterDynamicRoutes(menus, dynamicRoutes);
+  };
+
+  return {
+    state,
+    generateRoutes,
+  };
+});
+```
+
+### stores/user.ts
+
+```ts
+import { getAuthInfo, login } from "@/api/user";
+import { setRefreshToken, setToken } from "@/utils/auth";
+import { defineStore } from "pinia";
+import { reactive } from "vue";
+
+export const useUserStore = defineStore("user", () => {
+  const state = reactive({
+    token: "",
+    refreshToken: "",
+    userInfo: null, //当前登录的用户信息
+    roles: null, //当前登录的用户的角色数组
+  });
+  const toLogin = async (loginInfo) => {
+    try {
+      const response = await login(loginInfo);
+      const { token, refreshToken } = response.data;
+      setToken(token);
+      setRefreshToken(refreshToken);
+      state.token = token; //把token存到仓库里面去
+      state.refreshToken = refreshToken;
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const getUserInfo = async () => {
+    const result = await getAuthInfo();
+    const { roles, ...userInfo } = result.data;
+    state.userInfo = userInfo;
+    state.roles = roles;
+  };
+
+  return { state, toLogin, getUserInfo };
+});
+```
+
+### utils/auth.ts
+
+```ts
+const TOKEN = "token";
+export const getToken = () => {
+  return localStorage.getItem(TOKEN);
+};
+
+export const setToken = (token) => {
+  return localStorage.setItem(TOKEN, token);
+};
+
+export const removeToken = () => {
+  localStorage.removeItem(TOKEN);
+};
+
+const REFRESH_TOKEN = "refreshToken";
+export const getRefreshToken = () => {
+  return localStorage.getItem(REFRESH_TOKEN);
+};
+
+export const setRefreshToken = (token) => {
+  return localStorage.setItem(REFRESH_TOKEN, token);
+};
+
+export const removeRefreshToken = () => {
+  localStorage.removeItem(REFRESH_TOKEN);
+};
+```
+
+### utils/generateMenuTree.ts
+
+```ts
+const generateMenuTree = (list) => {
+  const map = list.reduce((prev, cur) => {
+    prev[cur.id] = cur;
+    return prev;
+  }, {});
+  const tree = [];
+  list.forEach((item) => {
+    const temp = map[item.id];
+    const parentId = item.parent_id;
+    if (parentId && map[parentId]) {
+      const parent = map[parentId];
+      parent.children = parent.children ?? [];
+      parent.children.push(temp);
+    } else {
+      tree.push(temp);
+    }
+  });
+  return tree;
+};
+
+export default generateMenuTree;
+```
+
+### views 下面的目录直接定义即可
+
+- About
+- Home
+- Login
+- Menu
+- Role
+- User
+
+src/views/Login/index.vue
+
+```ts
+<template>
+  <el-form>
+    <el-form-item label="用户名">
+      <el-input v-model="loginForm.username"></el-input>
+    </el-form-item>
+    <el-form-item label="密码">
+      <el-input v-model="loginForm.password"></el-input>
+    </el-form-item>
+    <el-button @click="submit">点击</el-button>
+  </el-form>
+</template>
+
+<script setup lang="ts">
+import { useUserStore } from "@/stores/user";
+import { reactive } from "vue";
+import { useRouter } from "vue-router";
+import useRouteQuery from "@/hooks/useRouteQuery";
+
+const router = useRouter();
+const userStore = useUserStore();
+const { redirect, otherQuery } = useRouteQuery();
+
+const loginForm = reactive({
+  username: "",
+  password: "",
+});
+
+const submit = async () => {
+  await userStore.toLogin(loginForm);
+  router.push({
+    path: redirect.value || "/home",
+    query: otherQuery.value,
+  });
+};
+</script>
+
+```

@@ -1,0 +1,420 @@
+## extractEvents
+
+### main.jsx
+
+```jsx showLineNumbers {11-18}
+import { createRoot } from "react-dom/client";
+
+function FunctionComponent() {
+  return (
+    <h1
+      onClick={() => console.log("onClick FunctionComponent")}
+      onClickCapture={() => console.log("onClickCapture FunctionComponent")}
+    >
+      hello{" "}
+      <span
+        style={{ color: "red" }}
+        onClick={() => console.log("onClick span")}
+        onClickCapture={() => console.log("onClickCapture span")}
+      >
+        world
+      </span>
+    </h1>
+  );
+}
+let element = <FunctionComponent />;
+const root = createRoot(document.getElementById("root"));
+root.render(element);
+```
+
+### ReactDOMEventListener.js
+
+src/react-dom-bindings/src/events/ReactDOMEventListener.js
+
+```js showLineNumbers {1-3, 33-40}
+import getEventTarget from "./getEventTarget";
+import { getClosestInstanceFromNode } from "../client/ReactDOMComponentTree";
+import { dispatchEventForPluginEventSystem } from "./DOMPluginEventSystem";
+
+export function createEventListenerWrapperWithPriority(
+  targetContainer,
+  domEventName,
+  eventSystemFlags
+) {
+  const listenerWrapper = dispatchDiscreteEvent;
+  return listenerWrapper.bind(
+    null,
+    domEventName,
+    eventSystemFlags,
+    targetContainer
+  );
+}
+
+function dispatchDiscreteEvent(
+  domEventName,
+  eventSystemFlags,
+  container,
+  nativeEvent
+) {
+  dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
+}
+export function dispatchEvent(
+  domEventName,
+  eventSystemFlags,
+  targetContainer,
+  nativeEvent
+) {
+  const nativeEventTarget = getEventTarget(nativeEvent);
+  const targetInst = getClosestInstanceFromNode(nativeEventTarget);
+  dispatchEventForPluginEventSystem(
+    domEventName,
+    eventSystemFlags,
+    nativeEvent,
+    targetInst,
+    targetContainer
+  );
+}
+```
+
+### getEventTarget.js
+
+src/react-dom-bindings/src/events/getListener.js
+
+```js
+function getEventTarget(nativeEvent) {
+  const target = nativeEvent.target || nativeEvent.srcElement || window;
+  return target;
+}
+export default getEventTarget;
+```
+
+### ReactDOMComponentTree.js
+
+src/react-dom-bindings/src/client/ReactDOMComponentTree.js
+
+```js
+const randomKey = Math.random().toString(36).slice(2);
+const internalInstanceKey = "__reactFiber$" + randomKey;
+const internalPropsKey = "__reactProps$" + randomKey;
+
+export function getClosestInstanceFromNode(targetNode) {
+  const targetInst = targetNode[internalInstanceKey];
+  if (targetInst) {
+    return targetInst;
+  }
+  return null;
+}
+
+export function getFiberCurrentPropsFromNode(node) {
+  return node[internalPropsKey] || null;
+}
+
+export function precacheFiberNode(hostInst, node) {
+  node[internalInstanceKey] = hostInst;
+}
+
+export function updateFiberProps(node, props) {
+  node[internalPropsKey] = props;
+}
+```
+
+### DOMPluginEventSystem.js
+
+src/react-dom-bindings/src/events/DOMPluginEventSystem.js
+
+```js showLineNumbers {9-11, 57-145}
+import { allNativeEvents } from "./EventRegistry";
+import { IS_CAPTURE_PHASE } from "./EventSystemFlags";
+import * as SimpleEventPlugin from "./plugins/SimpleEventPlugin";
+import { createEventListenerWrapperWithPriority } from "./ReactDOMEventListener";
+import {
+  addEventCaptureListener,
+  addEventBubbleListener,
+} from "./EventListener";
+import getEventTarget from "./getEventTarget";
+import { HostComponent } from "react-reconciler/src/ReactWorkTags";
+import getListener from "./getListener";
+
+SimpleEventPlugin.registerEvents();
+
+export function listenToAllSupportedEvents(rootContainerElement) {
+  allNativeEvents.forEach((domEventName) => {
+    listenToNativeEvent(domEventName, true, rootContainerElement);
+    listenToNativeEvent(domEventName, false, rootContainerElement);
+  });
+}
+
+export function listenToNativeEvent(
+  domEventName,
+  isCapturePhaseListener,
+  target
+) {
+  let eventSystemFlags = 0; // 冒泡 = 0 捕获 = 4
+  if (isCapturePhaseListener) {
+    eventSystemFlags |= IS_CAPTURE_PHASE;
+  }
+  addTrappedEventListener(
+    target,
+    domEventName,
+    eventSystemFlags,
+    isCapturePhaseListener
+  );
+}
+
+function addTrappedEventListener(
+  targetContainer,
+  domEventName,
+  eventSystemFlags,
+  isCapturePhaseListener
+) {
+  const listener = createEventListenerWrapperWithPriority(
+    targetContainer,
+    domEventName,
+    eventSystemFlags
+  );
+  if (isCapturePhaseListener) {
+    addEventCaptureListener(targetContainer, domEventName, listener);
+  } else {
+    addEventBubbleListener(targetContainer, domEventName, listener);
+  }
+}
+
+export function dispatchEventForPluginEventSystem(
+  domEventName,
+  eventSystemFlags,
+  nativeEvent,
+  targetInst,
+  targetContainer
+) {
+  dispatchEventsForPlugins(
+    domEventName,
+    eventSystemFlags,
+    nativeEvent,
+    targetInst,
+    targetContainer
+  );
+}
+
+function dispatchEventsForPlugins(
+  domEventName,
+  eventSystemFlags,
+  nativeEvent,
+  targetInst,
+  targetContainer
+) {
+  const nativeEventTarget = getEventTarget(nativeEvent);
+  const dispatchQueue = [];
+  extractEvents(
+    dispatchQueue,
+    domEventName,
+    targetInst,
+    nativeEvent,
+    nativeEventTarget,
+    eventSystemFlags,
+    targetContainer
+  );
+  console.log(dispatchQueue, "~~~~~");
+}
+
+function extractEvents(
+  dispatchQueue,
+  domEventName,
+  targetInst,
+  nativeEvent,
+  nativeEventTarget,
+  eventSystemFlags,
+  targetContainer
+) {
+  SimpleEventPlugin.extractEvents(
+    dispatchQueue,
+    domEventName,
+    targetInst,
+    nativeEvent,
+    nativeEventTarget,
+    eventSystemFlags,
+    targetContainer
+  );
+}
+
+export function accumulateSinglePhaseListeners(
+  targetFiber,
+  reactName,
+  nativeEventType,
+  inCapturePhase
+) {
+  const captureName = reactName + "Capture";
+  const reactEventName = inCapturePhase ? captureName : reactName;
+  const listeners = [];
+  let instance = targetFiber;
+  while (instance !== null) {
+    const { stateNode, tag } = instance;
+    if (tag === HostComponent && stateNode !== null) {
+      if (reactEventName !== null) {
+        const listener = getListener(instance, reactEventName);
+        if (listener !== null && listener !== undefined) {
+          listeners.push(createDispatchListener(instance, listener, stateNode));
+        }
+      }
+    }
+    instance = instance.return;
+  }
+  return listeners;
+}
+
+function createDispatchListener(instance, listener, stateNode) {
+  return {
+    instance,
+    listener,
+    stateNode,
+  };
+}
+```
+
+### getEventTarget.js
+
+src/react-dom-bindings/src/events/getEventTarget.js
+
+```js
+function getEventTarget(nativeEvent) {
+  const target = nativeEvent.target || nativeEvent.srcElement || window;
+  return target;
+}
+export default getEventTarget;
+```
+
+### SimpleEventPlugin.js
+
+```js showLineNumbers { 1-45}
+import {
+  registerSimpleEvents,
+  topLevelEventsToReactNames,
+} from "../DOMEventProperties";
+import { IS_CAPTURE_PHASE } from "../EventSystemFlags";
+import { accumulateSinglePhaseListeners } from "../DOMPluginEventSystem";
+import { SyntheticMouseEvent } from "../SyntheticEvent";
+
+function extractEvents(
+  dispatchQueue,
+  domEventName,
+  targetInst,
+  nativeEvent,
+  nativeEventTarget,
+  eventSystemFlags
+) {
+  const reactName = topLevelEventsToReactNames.get(domEventName); // onClick
+  let SyntheticEventCtor;
+  switch (domEventName) {
+    case "click":
+      SyntheticEventCtor = SyntheticMouseEvent;
+      break;
+    default:
+      break;
+  }
+  const inCapturePhase = (eventSystemFlags & IS_CAPTURE_PHASE) !== 0;
+  const listeners = accumulateSinglePhaseListeners(
+    targetInst,
+    reactName,
+    nativeEvent.type,
+    inCapturePhase
+  );
+  if (listeners.length > 0) {
+    const event = new SyntheticEventCtor(
+      reactName,
+      domEventName,
+      targetInst,
+      nativeEvent,
+      nativeEventTarget
+    );
+    dispatchQueue.push({ event, listeners });
+  }
+}
+
+export { registerSimpleEvents as registerEvents, extractEvents };
+```
+
+### DOMEventProperties.js
+
+```js showLineNumbers {3, 7}
+import { registerTwoPhaseEvent } from "./EventRegistry";
+
+export const topLevelEventsToReactNames = new Map();
+
+const simpleEventPluginEvents = ["click"];
+function registerSimpleEvent(domEventName, reactName) {
+  topLevelEventsToReactNames.set(domEventName, reactName);
+  registerTwoPhaseEvent(reactName, [domEventName]);
+}
+
+export function registerSimpleEvents() {
+  for (let i = 0; i < simpleEventPluginEvents.length; i++) {
+    const eventName = simpleEventPluginEvents[i]; // click
+    const domEventName = eventName.toLowerCase(); // click
+    const capitalizedEvent = eventName[0].toUpperCase() + eventName.slice(1); // Click
+    registerSimpleEvent(domEventName, `on${capitalizedEvent}`); // click=>onClick
+  }
+}
+```
+
+### ReactDOMHostConfig.js
+
+src/react-dom-bindings/src/client/ReactDOMHostConfig.js
+
+```js showLineNumbers { 2, 15-16}
+import { setInitialProperties } from "./ReactDOMComponent";
+import { precacheFiberNode, updateFiberProps } from "./ReactDOMComponentTree";
+export function shouldSetTextContent(type, props) {
+  return (
+    typeof props.children === "string" || typeof props.children === "number"
+  );
+}
+
+export const appendInitialChild = (parent, child) => {
+  parent.appendChild(child);
+};
+
+export const createInstance = (type, props, internalInstanceHandle) => {
+  const domElement = document.createElement(type);
+  precacheFiberNode(internalInstanceHandle, domElement);
+  updateFiberProps(domElement, props);
+  return domElement;
+};
+
+export const createTextInstance = (content) => document.createTextNode(content);
+
+export function finalizeInitialChildren(domElement, type, props) {
+  setInitialProperties(domElement, type, props);
+}
+
+export function appendChild(parentInstance, child) {
+  parentInstance.appendChild(child);
+}
+
+export function insertBefore(parentInstance, child, beforeChild) {
+  parentInstance.insertBefore(child, beforeChild);
+}
+```
+
+### DOMEventProperties.js
+
+src/react-dom-bindings/src/events/DOMEventProperties.js
+
+```js showLineNumbers {3, 7}
+import { registerTwoPhaseEvent } from "./EventRegistry";
+
+export const topLevelEventsToReactNames = new Map();
+
+const simpleEventPluginEvents = ["click"];
+function registerSimpleEvent(domEventName, reactName) {
+  topLevelEventsToReactNames.set(domEventName, reactName);
+  registerTwoPhaseEvent(reactName, [domEventName]);
+}
+
+export function registerSimpleEvents() {
+  for (let i = 0; i < simpleEventPluginEvents.length; i++) {
+    const eventName = simpleEventPluginEvents[i]; // click
+    const domEventName = eventName.toLowerCase(); // click
+    const capitalizedEvent = eventName[0].toUpperCase() + eventName.slice(1); // Click
+    registerSimpleEvent(domEventName, `on${capitalizedEvent}`); // click=>onClick
+  }
+}
+```
