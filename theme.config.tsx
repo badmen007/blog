@@ -33,7 +33,7 @@ const config: DocsThemeConfig = {
     },
   },
   gitTimestamp: (date) => (
-    <div>Last updated at {new Date(date.timestamp).toLocaleDateString()}</div>
+    <div>Last updated at {date.timestamp.getFullYear()}</div>
   ),
   navbar: {},
   editLink: {
